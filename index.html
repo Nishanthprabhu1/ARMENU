@@ -6,6 +6,7 @@
   <title>PINOCCHIO — AR Menu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet" />
+  <!-- model-viewer loaded async — does NOT block first paint -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -17,10 +18,13 @@
       font-family: 'DM Sans', sans-serif; color: var(--cream);
       -webkit-font-smoothing: antialiased; }
 
+    /* CAMERA BG */
     #camera-bg { position: fixed; inset: 0; z-index: 0; background: #111; }
     #cam-video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-    #mv-layer { position: fixed; inset: 0; z-index: 1; }
+    /* model-viewer — hidden until a dish is tapped */
+    #mv-layer { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
+    #mv-layer.visible { opacity: 1; pointer-events: auto; }
     model-viewer {
       width: 100%; height: 100%;
       background-color: transparent;
@@ -28,95 +32,72 @@
       --progress-bar-color: var(--gold);
       --progress-mask: transparent;
     }
-    model-viewer.hidden { opacity: 0; pointer-events: none; }
     model-viewer::part(default-ar-button) { display: none !important; }
 
-    #ui { position: fixed; inset: 0; z-index: 10; pointer-events: none;
-      display: flex; flex-direction: column; }
+    /* UI LAYER */
+    #ui { position: fixed; inset: 0; z-index: 10; pointer-events: none; display: flex; flex-direction: column; }
 
-    .top-bar {
-      display: flex; align-items: center; justify-content: space-between;
+    /* TOP BAR */
+    .top-bar { display: flex; align-items: center; justify-content: space-between;
       padding: 14px 16px 10px; pointer-events: auto;
-      background: linear-gradient(180deg, rgba(0,0,0,0.52) 0%, transparent 100%);
-    }
-    .back-btn {
-      width: 46px; height: 46px; border-radius: 50%;
+      background: linear-gradient(180deg, rgba(0,0,0,0.52) 0%, transparent 100%); }
+    .back-btn { width: 46px; height: 46px; border-radius: 50%;
       background: var(--green); color: var(--gold-lt); font-size: 20px;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-    }
-    .top-title {
-      font-family: 'Cinzel', serif; font-size: 17px; letter-spacing: 5px;
-      color: var(--gold); text-shadow: 0 2px 10px rgba(0,0,0,0.9);
-    }
-    .cart-btn {
-      width: 46px; height: 46px; border-radius: 50%; background: var(--gold);
+      cursor: pointer; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .top-title { font-family: 'Cinzel', serif; font-size: 17px; letter-spacing: 5px;
+      color: var(--gold); text-shadow: 0 2px 10px rgba(0,0,0,0.9); }
+    .cart-btn { width: 46px; height: 46px; border-radius: 50%; background: var(--gold);
       color: #0a0a0a; font-size: 19px; display: flex; align-items: center;
       justify-content: center; cursor: pointer; position: relative;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-    }
-    .cart-badge {
-      position: absolute; top: -3px; right: -3px; width: 19px; height: 19px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4); }
+    .cart-badge { position: absolute; top: -3px; right: -3px; width: 19px; height: 19px;
       border-radius: 50%; background: var(--crimson); color: #fff;
-      font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
-    }
+      font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
 
+    /* CATEGORY TABS */
     .cat-tabs { display: flex; gap: 8px; padding: 2px 16px 8px;
       overflow-x: auto; scrollbar-width: none; pointer-events: auto; }
     .cat-tabs::-webkit-scrollbar { display: none; }
-    .cat-tab {
-      flex-shrink: 0; padding: 7px 20px; border-radius: 30px; border: none;
+    .cat-tab { flex-shrink: 0; padding: 7px 20px; border-radius: 30px; border: none;
       background: rgba(0,0,0,0.38); color: rgba(232,221,208,0.7);
       font-family: 'DM Sans', sans-serif; font-size: 13px;
       cursor: pointer; transition: all 0.2s;
       backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-      box-shadow: 0 1px 6px rgba(0,0,0,0.35);
-    }
+      box-shadow: 0 1px 6px rgba(0,0,0,0.35); }
     .cat-tab.active { background: var(--gold); color: #0a0a0a; font-weight: 600;
       box-shadow: 0 2px 12px rgba(201,168,76,0.5); }
 
     .stage { flex: 1; }
 
+    /* BOTTOM PANEL */
     .bottom-panel { pointer-events: auto; }
-
-    .dish-info {
-      padding: 0 18px 10px;
-      background: linear-gradient(0deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.38) 65%, transparent 100%);
-    }
-    .dish-name {
-      font-family: 'Playfair Display', serif; font-size: clamp(20px, 5.5vw, 26px);
+    .dish-info { padding: 0 18px 10px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.38) 65%, transparent 100%); }
+    .dish-name { font-family: 'Playfair Display', serif; font-size: clamp(20px, 5.5vw, 26px);
       font-weight: 700; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.85);
-      margin-bottom: 4px; line-height: 1.2;
-    }
-    .dish-desc {
-      font-size: 12.5px; color: rgba(245,237,224,0.7); line-height: 1.6;
-      margin-bottom: 8px; text-shadow: 0 1px 5px rgba(0,0,0,0.8); max-width: 340px;
-    }
+      margin-bottom: 4px; line-height: 1.2; }
+    .dish-desc { font-size: 12.5px; color: rgba(245,237,224,0.7); line-height: 1.6;
+      margin-bottom: 8px; text-shadow: 0 1px 5px rgba(0,0,0,0.8); max-width: 340px; }
     .dish-row { display: flex; align-items: center; justify-content: space-between; }
     .dish-tags { display: flex; gap: 6px; }
-    .tag-veg {
-      display: inline-flex; align-items: center; gap: 5px;
+    .tag-veg { display: inline-flex; align-items: center; gap: 5px;
       font-size: 12px; padding: 4px 14px; border-radius: 20px; font-weight: 500;
       background: rgba(26,46,34,0.88); color: #8ddf7e;
-      border: 1px solid rgba(74,140,65,0.4); backdrop-filter: blur(4px);
-    }
+      border: 1px solid rgba(74,140,65,0.4); backdrop-filter: blur(4px); }
     .dish-price { font-family: 'Playfair Display', serif; font-size: 26px;
       color: var(--gold-lt); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
     .dish-price .sym { font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--muted); }
 
-    .ar-btn-wrap {
-      padding: 0 16px 10px;
-      background: rgba(0,0,0,0.42);
-    }
-    .ar-btn {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
+    /* AR BUTTON — shown after model loads */
+    .ar-btn-wrap { padding: 0 16px 10px; background: rgba(0,0,0,0.42); }
+    .ar-btn { display: flex; align-items: center; justify-content: center; gap: 10px;
       width: 100%; padding: 15px 0; background: var(--gold); color: #0a0a0a;
       font-family: 'Cinzel', serif; font-size: 12.5px; letter-spacing: 3px;
       font-weight: 600; border: none; border-radius: 10px; cursor: pointer;
       box-shadow: 0 4px 18px rgba(201,168,76,0.5);
       -webkit-tap-highlight-color: transparent;
-      transition: transform 0.13s, opacity 0.13s;
-    }
+      transition: transform 0.13s, opacity 0.13s; }
     .ar-btn:active { transform: scale(0.97); opacity: 0.88; }
     .ar-btn:disabled { background: rgba(201,168,76,0.28); color: rgba(201,168,76,0.45);
       box-shadow: none; cursor: default; }
@@ -129,6 +110,7 @@
       border-right: 9px solid transparent; border-top: 11px solid var(--gold);
       filter: drop-shadow(0 2px 5px rgba(201,168,76,0.6)); }
 
+    /* THUMBNAIL STRIP */
     .thumb-wrap { pointer-events: auto; background: rgba(0,0,0,0.45);
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       padding-bottom: max(env(safe-area-inset-bottom), 14px); }
@@ -156,15 +138,27 @@
       transition: color 0.2s; }
     .thumb-item.active .thumb-label { color: var(--gold-lt); font-weight: 500; }
 
+    /* "TAP TO VIEW 3D" hint — shown on dish cards before any model loads */
+    .ar-hint { display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 13px 16px; background: rgba(0,0,0,0.42);
+      font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 3px;
+      color: rgba(201,168,76,0.65); border-radius: 10px; margin: 0 16px 10px;
+      border: 1px solid rgba(201,168,76,0.15);
+      animation: hint-pulse 2.5s ease-in-out infinite; }
+    @keyframes hint-pulse { 0%,100%{opacity:.65} 50%{opacity:1} }
+    .ar-hint.hidden { display: none; }
+
+    /* LOADING OVERLAY — only for CSV fetch */
     .loading-overlay { position: fixed; inset: 0; background: #000;
       display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 14px; z-index: 9999; transition: opacity 0.5s; }
+      flex-direction: column; gap: 14px; z-index: 9999; transition: opacity 0.4s; }
     .loading-overlay.hidden { opacity: 0; pointer-events: none; }
     .load-ring { width: 38px; height: 38px; border: 2px solid rgba(201,168,76,0.12);
       border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .load-text { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 4px; color: var(--muted); }
 
+    /* CAMERA PERMISSION */
     .cam-card { position: fixed; inset: 0; background: rgba(0,0,0,0.93);
       display: none; flex-direction: column; align-items: center; justify-content: center;
       gap: 14px; padding: 32px; text-align: center; z-index: 9998; }
@@ -176,15 +170,20 @@
       font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 2px;
       border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
-    .model-spinner { position: fixed; top: 42%; left: 50%; transform: translate(-50%,-50%);
-      z-index: 5; pointer-events: none; display: flex; flex-direction: column;
-      align-items: center; gap: 9px; opacity: 0; transition: opacity 0.3s; }
-    .model-spinner.show { opacity: 1; }
-    .ms-ring { width: 32px; height: 32px; border: 2px solid rgba(201,168,76,0.12);
-      border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
-    .ms-text { font-family: 'Cinzel', serif; font-size: 8.5px; letter-spacing: 3px;
-      color: rgba(201,168,76,0.55); }
+    /* MODEL LOAD OVERLAY — pill shown while GLB downloads after tap */
+    #model-loading-pill {
+      position: fixed; bottom: 310px; left: 50%; transform: translateX(-50%);
+      z-index: 30; display: none; align-items: center; gap: 10px;
+      background: rgba(5,5,5,0.88); border: 1px solid rgba(201,168,76,0.3);
+      padding: 10px 20px; border-radius: 30px;
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      font-family: 'Cinzel', serif; font-size: 9.5px; letter-spacing: 2.5px;
+      color: rgba(201,168,76,0.8); white-space: nowrap; }
+    #model-loading-pill.show { display: flex; }
+    .pill-ring { width: 16px; height: 16px; border: 1.5px solid rgba(201,168,76,0.18);
+      border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink:0; }
 
+    /* TOAST */
     .toast { position: fixed; top: 88px; left: 50%;
       transform: translateX(-50%) translateY(-5px);
       background: rgba(5,5,5,0.88); border: 1px solid rgba(201,168,76,0.28);
@@ -194,103 +193,46 @@
       pointer-events: none; z-index: 20; white-space: nowrap; }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    /* ── INSTANT-AR SPLASH ─────────────────────────────────────────────────────
-       Shown immediately on first load (before any model loads).
-       This IS the user gesture — tapping it calls activateAR() directly.
-       Two states:
-         .loading  = model still loading — shows spinner, tap queues AR
-         (default) = model ready — tap fires AR immediately
-    ────────────────────────────────────────────────────────────────────────── */
-    #ar-splash {
-      position: fixed; inset: 0; z-index: 50;
-      display: none;
-      flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 0;
-      background: rgba(0,0,0,0.52);
-      backdrop-filter: blur(3px);
-      -webkit-backdrop-filter: blur(3px);
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-    }
+    /* AR SPLASH — shown only after model is ready, one tap fires AR */
+    #ar-splash { position: fixed; inset: 0; z-index: 50;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 0;
+      background: rgba(0,0,0,0.48);
+      backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+      cursor: pointer; -webkit-tap-highlight-color: transparent; }
     #ar-splash.show { display: flex; }
-
-    /* Pulse ring */
-    .splash-ring {
-      width: 120px; height: 120px; border-radius: 50%;
+    .splash-ring { width: 120px; height: 120px; border-radius: 50%;
       border: 2px solid rgba(201,168,76,0.4);
       display: flex; align-items: center; justify-content: center;
       position: relative; margin-bottom: 24px;
-    }
-    .splash-ring::before {
-      content: '';
-      position: absolute; inset: -14px; border-radius: 50%;
+      animation: splash-pulse 2s ease-in-out infinite; }
+    .splash-ring::before { content: ''; position: absolute; inset: -14px; border-radius: 50%;
       border: 1.5px solid rgba(201,168,76,0.18);
-      animation: splash-pulse 2s ease-in-out infinite 0.3s;
-    }
-    .splash-ring::after {
-      content: '';
-      position: absolute; inset: -28px; border-radius: 50%;
+      animation: splash-pulse 2s ease-in-out infinite 0.3s; }
+    .splash-ring::after { content: ''; position: absolute; inset: -28px; border-radius: 50%;
       border: 1px solid rgba(201,168,76,0.08);
-      animation: splash-pulse 2s ease-in-out infinite 0.6s;
-    }
-    /* The ring itself pulses only when ready */
-    #ar-splash:not(.loading) .splash-ring {
-      animation: splash-pulse 2s ease-in-out infinite;
-    }
-    @keyframes splash-pulse {
-      0%,100%{ transform: scale(1); opacity: 1; }
-      50%    { transform: scale(1.07); opacity: 0.7; }
-    }
-
-    .splash-icon { font-size: 50px; line-height: 1; }
-
-    /* Loading ring — shown inside the icon area while model loads */
-    .splash-loading-ring {
-      display: none;
-      width: 56px; height: 56px;
-      border: 3px solid rgba(201,168,76,0.18);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
-    }
-    #ar-splash.loading .splash-icon { display: none; }
-    #ar-splash.loading .splash-loading-ring { display: block; }
-
-    .splash-label {
-      font-family: 'Cinzel', serif; font-size: 13px;
-      letter-spacing: 4px; color: var(--gold);
-      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
-      margin-bottom: 8px;
-    }
-    /* When loading, swap the label text via data attribute */
-    #ar-splash.loading .splash-label-ready { display: none; }
-    #ar-splash:not(.loading) .splash-label-loading { display: none; }
-
-    .splash-sub {
-      font-size: 11px; color: var(--muted);
-      letter-spacing: 1.5px; text-align: center;
-      text-shadow: 0 1px 6px rgba(0,0,0,0.8);
-    }
-
-    #splash-skip {
-      position: absolute; bottom: 200px;
+      animation: splash-pulse 2s ease-in-out infinite 0.6s; }
+    @keyframes splash-pulse { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.07);opacity:0.7} }
+    .splash-icon { font-size: 50px; line-height: 1; filter: drop-shadow(0 0 12px rgba(201,168,76,0.5)); }
+    .splash-label { font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 4px;
+      color: var(--gold); text-shadow: 0 2px 10px rgba(0,0,0,0.8); margin-bottom: 8px; }
+    .splash-sub { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-align: center;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.8); }
+    #splash-skip { position: absolute; bottom: 200px;
       background: rgba(0,0,0,0.5); border: 1px solid rgba(201,168,76,0.2);
       color: rgba(201,168,76,0.5); font-family: 'Cinzel', serif;
       font-size: 9px; letter-spacing: 2px; padding: 8px 20px;
-      border-radius: 30px; cursor: pointer;
-      backdrop-filter: blur(6px);
-    }
-    /* Only show skip when ready */
-    #ar-splash.loading #splash-skip { display: none; }
+      border-radius: 30px; cursor: pointer; backdrop-filter: blur(6px); }
   </style>
 </head>
 <body>
 
+<!-- LAYER 1: LIVE CAMERA -->
 <div id="camera-bg"><video id="cam-video" autoplay playsinline muted></video></div>
 
+<!-- LAYER 2: model-viewer — hidden until user taps a dish -->
 <div id="mv-layer">
-  <model-viewer id="mv" class="hidden"
+  <model-viewer id="mv"
     camera-controls touch-action="pan-y"
     shadow-intensity="1.4" shadow-softness="0.85"
     environment-image="neutral" exposure="1.15"
@@ -303,6 +245,7 @@
   </model-viewer>
 </div>
 
+<!-- LAYER 3: UI -->
 <div id="ui">
   <div class="top-bar">
     <button class="back-btn">&#8592;</button>
@@ -320,8 +263,11 @@
         <div class="dish-price" id="info-price"></div>
       </div>
     </div>
-    <div class="ar-btn-wrap">
-      <button class="ar-btn" id="ar-btn" disabled>
+    <!-- Hint shown before any model loads -->
+    <div class="ar-hint" id="ar-hint">⬡ &nbsp;TAP A DISH BELOW TO VIEW IN 3D &amp; AR</div>
+    <!-- AR button shown only after model is ready -->
+    <div class="ar-btn-wrap" id="ar-btn-wrap" style="display:none">
+      <button class="ar-btn" id="ar-btn">
         <span>&#x2B21;</span> VIEW IN AR &#8212; PLACE ON TABLE
       </button>
       <div class="ar-unsupported" id="ar-unsupported">AR NOT SUPPORTED ON THIS DEVICE / BROWSER</div>
@@ -333,13 +279,18 @@
   </div>
 </div>
 
-<div class="model-spinner" id="model-spinner">
-  <div class="ms-ring"></div><div class="ms-text">LOADING MODEL</div>
+<!-- Model loading pill (appears while GLB downloads) -->
+<div id="model-loading-pill">
+  <div class="pill-ring"></div>
+  <span id="pill-text">LOADING 3D MODEL</span>
 </div>
+
 <div class="toast" id="toast"></div>
+
 <div class="loading-overlay" id="loading">
   <div class="load-ring"></div><p class="load-text">LOADING MENU</p>
 </div>
+
 <div class="cam-card" id="cam-card">
   <div class="cam-card-icon">&#128247;</div>
   <div class="cam-card-title">CAMERA ACCESS</div>
@@ -347,27 +298,26 @@
   <button class="cam-card-btn" id="cam-card-btn">ALLOW CAMERA</button>
 </div>
 
-<!--
-  INSTANT-AR SPLASH
-  - Shown IMMEDIATELY when the page loads (before model is ready)
-  - Has .loading class while model loads → shows spinner + "PREPARING AR" text
-  - When model is ready, .loading is removed → shows dish icon + "TAP TO VIEW IN AR"
-  - User tap inside click handler = valid gesture → activateAR() fires instantly
--->
-<div id="ar-splash" class="loading">
-  <div class="splash-ring">
-    <span class="splash-icon">🍽️</span>
-    <div class="splash-loading-ring"></div>
-  </div>
-  <div class="splash-label">
-    <span class="splash-label-ready">TAP TO VIEW IN AR</span>
-    <span class="splash-label-loading">PREPARING AR</span>
-  </div>
-  <div class="splash-sub" id="splash-sub">LOADING 3D MODEL…</div>
-  <button id="splash-skip">USE CAMERA PREVIEW INSTEAD</button>
+<!-- AR SPLASH — appears only when model is ready; one tap = AR -->
+<div id="ar-splash">
+  <div class="splash-ring"><span class="splash-icon" id="splash-icon">🍽️</span></div>
+  <div class="splash-label">TAP TO VIEW IN AR</div>
+  <div class="splash-sub">DISH WILL APPEAR ON YOUR TABLE</div>
+  <button id="splash-skip">VIEW 3D PREVIEW INSTEAD</button>
 </div>
 
 <script>
+/* ─────────────────────────────────────────────────────────────────────────────
+   PINOCCHIO AR MENU
+   Flow:
+   1. Page loads → only UI + camera start (NO model load)
+   2. User taps a dish thumbnail → info updates instantly, loading pill appears,
+      GLB starts downloading in background
+   3. GLB ready → pill hides, AR splash appears (one tap = AR)
+   4. User taps splash → AR fires (valid gesture)
+   5. "View 3D preview" skips AR, shows model-viewer in camera background
+───────────────────────────────────────────────────────────────────────────── */
+
 const ASSETS_BASE = '3d-model';
 const LOCAL_ASSETS = {
   'pistachio-sauce-bigne-with-ricotta': { folder:'Pistachio-Sauce-Bigne-with-Ricotta', file:'Pistachio-Sauce-Bigne-with-Ricotta', scale:0.25 },
@@ -384,308 +334,292 @@ const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTEkmIGoRgD1rQN
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
               (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 
-let allDishes=[], filteredDishes=[], activeCategory='all', activeDishIdx=0, modelReady=false;
+let allDishes = [], filteredDishes = [], activeCategory = 'all', activeDishIdx = 0;
+let modelReady = false;       // true when current GLB is loaded
+let modelLoadTriggered = false; // true once user has tapped a dish (any dish)
+let currentDishKey = null;    // tracks which dish is loaded to avoid re-loading same
 
-// ── KEY STATE FLAGS ──────────────────────────────────────────────────────────
-// userWantsAR: set to true when user taps the splash while model is loading.
-//              When model finishes, we auto-fire AR immediately.
-// splashDismissed: user chose "camera preview instead" — don't re-show splash.
-let userWantsAR = false;
-let splashDismissed = false;
-// ────────────────────────────────────────────────────────────────────────────
-
-const mv    = document.getElementById('mv');
-const arBtn = document.getElementById('ar-btn');
-const spinner = document.getElementById('model-spinner');
+const mv      = document.getElementById('mv');
+const arBtn   = document.getElementById('ar-btn');
+const pill    = document.getElementById('model-loading-pill');
 const toast   = document.getElementById('toast');
 const splash  = document.getElementById('ar-splash');
+const arHint  = document.getElementById('ar-hint');
+const arBtnWrap = document.getElementById('ar-btn-wrap');
 
+/* ── HELPERS ─────────────────────────────────────────────────────────────── */
 function norm(s){ return (s||'').toLowerCase().replace(/\s+/g,'-').trim(); }
+
 function getAssets(name){
-  const k=norm(name),e=LOCAL_ASSETS[k];
-  if(!e) return{poster:'',glb:'',usdz:'',scale:0.1};
-  const b=`${ASSETS_BASE}/${e.folder}/${e.file}`;
-  return{poster:`${b}.png`,glb:`${b}.glb`,usdz:`${b}.usdz`,scale:e.scale};
+  const k = norm(name), e = LOCAL_ASSETS[k];
+  if(!e) return { poster:'', glb:'', usdz:'', scale:0.1 };
+  const b = `${ASSETS_BASE}/${e.folder}/${e.file}`;
+  return { poster:`${b}.png`, glb:`${b}.glb`, usdz:`${b}.usdz`, scale:e.scale };
 }
+
 function parseCSV(text){
-  const lines=text.trim().split('\n');
-  if(lines.length<2)return[];
-  const headers=splitLine(lines[0]).map(h=>h.trim().toLowerCase());
-  return lines.slice(1).map(line=>{const vals=splitLine(line),obj={};
-    headers.forEach((h,i)=>{obj[h]=(vals[i]||'').trim();});return obj;});
+  const lines = text.trim().split('\n');
+  if(lines.length < 2) return [];
+  const headers = splitLine(lines[0]).map(h => h.trim().toLowerCase());
+  return lines.slice(1).map(line => {
+    const vals = splitLine(line), obj = {};
+    headers.forEach((h,i) => { obj[h] = (vals[i]||'').trim(); });
+    return obj;
+  });
 }
 function splitLine(line){
-  const res=[];let cur='',inQ=false;
+  const res=[]; let cur='', inQ=false;
   for(let i=0;i<line.length;i++){
     const ch=line[i];
     if(ch==='"'&&!inQ){inQ=true;continue;}
     if(ch==='"'&&inQ){if(line[i+1]==='"'){cur+='"';i++;}else{inQ=false;}continue;}
     if(ch===','&&!inQ){res.push(cur);cur='';continue;}
-    cur+=ch;}res.push(cur);return res;
+    cur+=ch;
+  } res.push(cur); return res;
 }
-function truthy(v){return['true','yes','1'].includes((v||'').toLowerCase());}
+function truthy(v){ return ['true','yes','1'].includes((v||'').toLowerCase()); }
 function rowToDish(row){
-  const a=getAssets(row['name']);
-  return{id:row['id']||'',name:row['name']||'',
+  const a = getAssets(row['name']);
+  return { id:row['id']||'', name:row['name']||'',
     category:(row['category']||'other').toLowerCase(),
-    desc:row['description']||'',price:parseInt(row['price']||'0',10),
-    veg:truthy(row['veg']),available:truthy(row['available']),
-    ...a,emoji:EMOJI_MAP[norm(row['name'])]||'🍽️'};
+    desc:row['description']||'', price:parseInt(row['price']||'0',10),
+    veg:truthy(row['veg']), available:truthy(row['available']),
+    ...a, emoji:EMOJI_MAP[norm(row['name'])]||'🍽️' };
 }
 
 let _tt;
-function showToast(msg,dur=2600){
-  clearTimeout(_tt);toast.textContent=msg;toast.classList.add('show');
-  _tt=setTimeout(()=>toast.classList.remove('show'),dur);
+function showToast(msg, dur=2600){
+  clearTimeout(_tt); toast.textContent=msg; toast.classList.add('show');
+  _tt = setTimeout(()=>toast.classList.remove('show'), dur);
 }
 
+/* ── CAMERA ──────────────────────────────────────────────────────────────── */
 async function startCamera(){
-  const video=document.getElementById('cam-video');
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
-    video.srcObject=stream;await video.play();
-  }catch(err){
-    console.warn('Camera:',err.name);
-    document.getElementById('camera-bg').style.background=
+  const video = document.getElementById('cam-video');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} }, audio:false
+    });
+    video.srcObject = stream; await video.play();
+  } catch(err){
+    console.warn('Camera:', err.name);
+    document.getElementById('camera-bg').style.background =
       'radial-gradient(ellipse at 50% 40%,#1a2e22,#050d07)';
     if(err.name==='NotAllowedError')
       document.getElementById('cam-card').classList.add('show');
   }
 }
-document.getElementById('cam-card-btn').addEventListener('click',async()=>{
+document.getElementById('cam-card-btn').addEventListener('click', async ()=>{
   document.getElementById('cam-card').classList.remove('show');
   await startCamera();
 });
 
-// ── CORE AR FIRE ─────────────────────────────────────────────────────────────
-// Call this ONLY inside a click/touch handler (browser gesture requirement).
+/* ── AR FIRE (must be inside a click handler) ────────────────────────────── */
 async function fireAR(){
-  if(!mv.canActivateAR){ showToast('AR NOT AVAILABLE ON THIS DEVICE'); return; }
-  try{ await mv.activateAR(); }
+  if(!mv.canActivateAR){ showToast('AR NOT AVAILABLE — USE CHROME OR SAFARI'); return; }
+  try { await mv.activateAR(); }
   catch(e){ showToast('COULD NOT START AR SESSION'); console.warn(e); }
 }
 
+/* ── AR BUTTON (fallback after splash dismissed) ─────────────────────────── */
 function updateARBtn(){
-  const ok=!!mv.canActivateAR;
-  arBtn.style.display=ok?'':'none';
-  document.getElementById('ar-unsupported').style.display=ok?'none':'block';
-  if(ok) arBtn.disabled=!modelReady;
+  const ok = !!mv.canActivateAR;
+  arBtn.style.display = ok ? '' : 'none';
+  document.getElementById('ar-unsupported').style.display = ok ? 'none' : 'block';
+  arBtn.disabled = !modelReady;
 }
-
-// Fallback button (for users who dismissed the splash)
 arBtn.addEventListener('click', async ()=>{
   if(!modelReady){ showToast('MODEL STILL LOADING…'); return; }
   await fireAR();
 });
 
-// ── SPLASH LOGIC ─────────────────────────────────────────────────────────────
+/* ── SPLASH ──────────────────────────────────────────────────────────────── */
+let splashDismissed = false;
 
-function updateSplashIcon(){
-  const d = filteredDishes[activeDishIdx];
-  if(d) splash.querySelector('.splash-icon').textContent = d.emoji || '🍽️';
-}
-
-// Show splash immediately — starts in .loading state
-function showSplashInitial(){
+function showARSplash(dish){
   if(splashDismissed) return;
+  document.getElementById('splash-icon').textContent = dish.emoji || '🍽️';
   splash.classList.add('show');
-  // .loading class is already set in HTML
 }
 
-// Called when model finishes loading: remove loading state, enable tap-to-AR
-function splashModelReady(){
-  if(splashDismissed) return;
-  splash.classList.remove('loading');
-  document.getElementById('splash-sub').textContent = 'DISH WILL APPEAR ON YOUR TABLE';
-  updateSplashIcon();
-}
-
-// User tapped the splash
 splash.addEventListener('click', async (e)=>{
-  if(e.target.id === 'splash-skip') return; // handled below
-
-  if(!modelReady){
-    // Model still loading — queue the intent, show feedback
-    userWantsAR = true;
-    document.getElementById('splash-sub').textContent = 'WILL OPEN AS SOON AS READY…';
-    showToast('OPENING AR WHEN MODEL READY…', 3000);
-    return;
-  }
-
-  // Model ready — this click IS the gesture, fire AR
+  if(e.target.id === 'splash-skip') return;
   splash.classList.remove('show');
-  await fireAR();
+  await fireAR(); // click handler = valid gesture
 });
 
-document.getElementById('splash-skip').addEventListener('click',(e)=>{
+document.getElementById('splash-skip').addEventListener('click', (e)=>{
   e.stopPropagation();
   splashDismissed = true;
-  userWantsAR = false;
   splash.classList.remove('show');
+  // Show the 3D model in the camera background view
+  document.getElementById('mv-layer').classList.add('visible');
+  arBtnWrap.style.display = '';
   updateARBtn();
 });
 
-// ── MODEL-VIEWER EVENTS ───────────────────────────────────────────────────────
-
-mv.addEventListener('load', async ()=>{
+/* ── MODEL-VIEWER EVENTS ─────────────────────────────────────────────────── */
+mv.addEventListener('load', ()=>{
   modelReady = true;
-  spinner.classList.remove('show');
-  mv.classList.remove('hidden');
-  updateARBtn();
+  pill.classList.remove('show');
+  // Show the model silently in background (no visible pop-in)
+  // — the splash is the CTA, not the model preview
+  document.getElementById('mv-layer').classList.add('visible');
 
-  if(userWantsAR && !splashDismissed && mv.canActivateAR){
-    // User already tapped while loading — BUT we cannot call activateAR() here
-    // because this is NOT a user gesture (it's a model load callback).
-    // So we: remove loading state and show a crisp "TAP" prompt.
-    // The user sees the prompt and taps once — that's all it takes.
-    userWantsAR = false;
-    splashModelReady();
-    showToast('READY — TAP THE SCREEN TO LAUNCH AR', 3500);
-    return;
-  }
+  const d = filteredDishes[activeDishIdx];
+  if(d) showARSplash(d);
 
-  if(!splashDismissed && mv.canActivateAR){
-    splashModelReady();
-  }
+  // If splash already dismissed, show the button
+  if(splashDismissed){ arBtnWrap.style.display=''; updateARBtn(); }
 });
 
-mv.addEventListener('error',()=>{
+mv.addEventListener('error', ()=>{
   modelReady = false;
-  spinner.classList.remove('show');
-  mv.classList.add('hidden');
-  arBtn.disabled = true;
-  splash.classList.remove('show'); // hide splash, fall back to normal UI
-  splashDismissed = true;
+  pill.classList.remove('show');
+  splash.classList.remove('show');
   showToast('COULD NOT LOAD 3D MODEL');
+  arHint.classList.remove('hidden');
+  arHint.textContent = '⬡  NO 3D MODEL FOR THIS DISH';
 });
 
 mv.addEventListener('ar-status', e=>{
   const s = e.detail.status;
-  if(s==='object-placed') showToast('DISH PLACED ON TABLE ✓');
-  if(s==='failed'){
+  if(s === 'object-placed') showToast('DISH PLACED ON TABLE ✓');
+  if(s === 'failed'){
     showToast('AR UNAVAILABLE — USE CHROME (ANDROID) OR SAFARI (iOS)');
-    updateARBtn();
+    if(splashDismissed) updateARBtn();
   }
-  if(s==='not-presenting'){
-    updateARBtn();
-    // After exiting AR, show splash again so they can re-enter with one tap
-    if(!splashDismissed && mv.canActivateAR) splash.classList.add('show');
+  if(s === 'not-presenting'){
+    // After exiting AR, show splash again for re-entry
+    const d = filteredDishes[activeDishIdx];
+    if(d && !splashDismissed) showARSplash(d);
+    else if(splashDismissed) updateARBtn();
   }
 });
 
-// ── MODEL LOADING ─────────────────────────────────────────────────────────────
-
+/* ── LOAD MODEL (called only when user taps a dish) ──────────────────────── */
 function loadModel(dish){
+  const key = norm(dish.name);
+  if(key === currentDishKey && modelReady) return; // already loaded — skip
+  currentDishKey = key;
   modelReady = false;
-  arBtn.disabled = true;
-
-  // Reset splash to loading state for new dish
-  if(!splashDismissed){
-    splash.classList.add('loading', 'show');
-    document.getElementById('splash-sub').textContent = 'LOADING 3D MODEL…';
-  }
+  splashDismissed = false; // reset for new dish
+  splash.classList.remove('show');
+  document.getElementById('mv-layer').classList.remove('visible');
+  arBtnWrap.style.display = 'none';
 
   if(!dish.glb){
-    mv.classList.add('hidden');
-    spinner.classList.remove('show');
-    splash.classList.remove('show');
-    splashDismissed = true;
-    showToast('NO 3D MODEL FOR THIS DISH');
+    pill.classList.remove('show');
+    arHint.textContent = '⬡  NO 3D MODEL FOR THIS DISH';
+    arHint.classList.remove('hidden');
     return;
   }
 
-  mv.classList.add('hidden');
-  spinner.classList.add('show');
-  const s=(dish.scale??0.1).toFixed(6);
-  mv.setAttribute('scale',`${s} ${s} ${s}`);
-  if(isIOS&&dish.usdz) mv.setAttribute('ios-src',dish.usdz);
+  // Show pill while downloading
+  document.getElementById('pill-text').textContent = 'LOADING 3D MODEL';
+  pill.classList.add('show');
+  arHint.classList.add('hidden');
+
+  const s = (dish.scale ?? 0.1).toFixed(6);
+  mv.setAttribute('scale', `${s} ${s} ${s}`);
+  if(isIOS && dish.usdz) mv.setAttribute('ios-src', dish.usdz);
   else mv.removeAttribute('ios-src');
-  if(dish.poster) mv.setAttribute('poster',dish.poster);
+  if(dish.poster) mv.setAttribute('poster', dish.poster);
   else mv.removeAttribute('poster');
-  mv.setAttribute('src',dish.glb);
+  mv.setAttribute('src', dish.glb); // triggers download
 }
 
-// ── UI RENDERING ──────────────────────────────────────────────────────────────
-
+/* ── UI ──────────────────────────────────────────────────────────────────── */
 function getFiltered(){
-  return activeCategory==='all'?allDishes:allDishes.filter(d=>d.category===activeCategory);
+  return activeCategory === 'all' ? allDishes : allDishes.filter(d => d.category === activeCategory);
 }
-function getCategories(){return['all',...new Set(allDishes.map(d=>d.category))];}
+function getCategories(){ return ['all', ...new Set(allDishes.map(d => d.category))]; }
 
 function renderCatTabs(){
-  const wrap=document.getElementById('cat-tabs');
-  wrap.innerHTML=getCategories().map(c=>
+  const wrap = document.getElementById('cat-tabs');
+  wrap.innerHTML = getCategories().map(c =>
     `<button class="cat-tab${c===activeCategory?' active':''}" data-cat="${c}">${CAT_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))}</button>`
   ).join('');
-  wrap.querySelectorAll('.cat-tab').forEach(btn=>btn.addEventListener('click',()=>{
-    activeCategory=btn.dataset.cat;activeDishIdx=0;
-    renderCatTabs();renderThumbStrip();selectDish(0);
+  wrap.querySelectorAll('.cat-tab').forEach(btn => btn.addEventListener('click', ()=>{
+    activeCategory = btn.dataset.cat; activeDishIdx = 0;
+    renderCatTabs(); renderThumbStrip(); selectDish(0, false); // no auto-load on category change
   }));
 }
 
 function renderThumbStrip(){
-  filteredDishes=getFiltered();
-  const strip=document.getElementById('thumb-strip');
-  strip.innerHTML=filteredDishes.map((d,i)=>{
-    const inner=d.poster
-      ?`<img src="${d.poster}" alt="${d.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;font-size:22px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
-      :`<span style="font-size:22px;">${d.emoji}</span>`;
-    return`<div class="thumb-item${i===activeDishIdx?' active':''}" data-idx="${i}">
+  filteredDishes = getFiltered();
+  const strip = document.getElementById('thumb-strip');
+  strip.innerHTML = filteredDishes.map((d,i) => {
+    const inner = d.poster
+      ? `<img src="${d.poster}" alt="${d.name}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;font-size:22px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
+      : `<span style="font-size:22px;">${d.emoji}</span>`;
+    return `<div class="thumb-item${i===activeDishIdx?' active':''}" data-idx="${i}">
       <div class="thumb-ring"><div class="thumb-inner">${inner}</div></div>
       <div class="thumb-label">${d.name.split(' ').slice(0,2).join(' ')}</div></div>`;
   }).join('');
-  strip.querySelectorAll('.thumb-item').forEach(item=>item.addEventListener('click',()=>{
-    activeDishIdx=parseInt(item.dataset.idx);
-    updateThumbActive();selectDish(activeDishIdx);
+  strip.querySelectorAll('.thumb-item').forEach(item => item.addEventListener('click', ()=>{
+    activeDishIdx = parseInt(item.dataset.idx);
+    updateThumbActive();
+    selectDish(activeDishIdx, true); // true = user tapped = trigger model load
   }));
   scrollThumbToActive();
 }
 
 function updateThumbActive(){
-  document.querySelectorAll('.thumb-item').forEach((el,i)=>el.classList.toggle('active',i===activeDishIdx));
+  document.querySelectorAll('.thumb-item').forEach((el,i) =>
+    el.classList.toggle('active', i===activeDishIdx));
   scrollThumbToActive();
 }
 function scrollThumbToActive(){
-  const el=document.querySelectorAll('.thumb-item')[activeDishIdx];
-  if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  const el = document.querySelectorAll('.thumb-item')[activeDishIdx];
+  if(el) el.scrollIntoView({ behavior:'smooth', block:'nearest', inline:'center' });
 }
 
-function selectDish(idx){
-  filteredDishes=getFiltered();
-  const d=filteredDishes[idx];if(!d)return;
-  document.getElementById('info-name').textContent=d.name;
-  document.getElementById('info-desc').textContent=d.desc;
-  document.getElementById('info-price').innerHTML=`<span class="sym">&#8377;</span>${d.price.toLocaleString('en-IN')}`;
-  document.getElementById('info-tags').innerHTML=d.veg?'<span class="tag-veg">🌿 Vegetarian</span>':'';
-  updateSplashIcon();
-  loadModel(d);
+/* selectDish
+   userTapped=false → just update info text (on init / category switch)
+   userTapped=true  → also trigger GLB download                          */
+function selectDish(idx, userTapped=false){
+  filteredDishes = getFiltered();
+  const d = filteredDishes[idx]; if(!d) return;
+
+  // Update info instantly (no wait for model)
+  document.getElementById('info-name').textContent = d.name;
+  document.getElementById('info-desc').textContent = d.desc;
+  document.getElementById('info-price').innerHTML = `<span class="sym">&#8377;</span>${d.price.toLocaleString('en-IN')}`;
+  document.getElementById('info-tags').innerHTML = d.veg ? '<span class="tag-veg">🌿 Vegetarian</span>' : '';
+
+  if(userTapped){
+    // First tap ever: hide hint, trigger model load
+    arHint.classList.add('hidden');
+    loadModel(d);
+  }
 }
 
-// ── INIT ──────────────────────────────────────────────────────────────────────
-
+/* ── INIT ────────────────────────────────────────────────────────────────── */
 async function init(){
-  const loadEl=document.getElementById('loading');
+  const loadEl = document.getElementById('loading');
+  try {
+    startCamera(); // non-blocking — camera starts while CSV fetches
 
-  // Show splash IMMEDIATELY (in loading state) — user sees it on first open
-  showSplashInitial();
+    const res = await fetch(CSV_URL);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+    allDishes = parseCSV(text).map(rowToDish).filter(d => d.name && d.available);
+    if(!allDishes.length) throw new Error('No dishes');
 
-  try{
-    startCamera(); // non-blocking
-    const res=await fetch(CSV_URL);
-    if(!res.ok)throw new Error(`HTTP ${res.status}`);
-    const text=await res.text();
-    allDishes=parseCSV(text).map(rowToDish).filter(d=>d.name&&d.available);
-    if(!allDishes.length)throw new Error('No dishes');
+    // Hide loading overlay — UI appears immediately
     loadEl.classList.add('hidden');
-    setTimeout(()=>{loadEl.style.display='none';},500);
-    filteredDishes=getFiltered();
-    renderCatTabs();renderThumbStrip();selectDish(0);
-    setTimeout(updateARBtn,1000);
-  }catch(err){
+    setTimeout(()=>{ loadEl.style.display='none'; }, 400);
+
+    filteredDishes = getFiltered();
+    renderCatTabs();
+    renderThumbStrip();
+    selectDish(0, false); // populate info text only — NO model load
+    // arHint is visible: "TAP A DISH BELOW TO VIEW IN 3D & AR"
+
+  } catch(err){
     console.error(err);
-    splash.classList.remove('show');
-    loadEl.innerHTML=`<div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;"><div style="font-size:36px;margin-bottom:14px">🍽️</div><div>Could not load menu</div><div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif">Check connection</div></div>`;
+    loadEl.innerHTML = `<div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;"><div style="font-size:36px;margin-bottom:14px">🍽️</div><div>Could not load menu</div><div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif">Check connection</div></div>`;
   }
 }
 init();
