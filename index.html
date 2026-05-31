@@ -6,6 +6,13 @@
   <title>PINOCCHIO — AR Menu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet" />
+  <!--
+    model-viewer handles ALL of:
+      Android  → WebXR (real surface detection via device sensor fusion)
+      Android  → Scene Viewer fallback (native Google AR app)
+      iOS      → Quick Look (ARKit, native fullscreen)
+    We call mv.activateAR() programmatically — no fake camera layer needed.
+  -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
   <style>
@@ -24,52 +31,31 @@
     html, body {
       height: 100%;
       overflow: hidden;
-      background: #000;
+      background: var(--bg);
       font-family: 'DM Sans', sans-serif;
       color: var(--cream);
     }
 
-    /* ════════════════════════════════
-       CAMERA LAYER — full background
-    ════════════════════════════════ */
-    #camera-layer {
+    /* ─────────────────────────────────────
+       model-viewer sits in a PREVIEW panel
+       (no camera — just shows the 3D model
+        spinning on a dark/neutral bg)
+    ───────────────────────────────────── */
+    #preview-layer {
       position: fixed;
       inset: 0;
       z-index: 0;
-      background: #000;
-      overflow: hidden;
-    }
-    #camera-video {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-    /* Subtle dark vignette so UI reads over camera */
-    #camera-layer::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background:
-        radial-gradient(ellipse at 50% 0%,   rgba(0,0,0,0.45) 0%, transparent 60%),
-        radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.7)  0%, transparent 55%);
-      pointer-events: none;
+      background: radial-gradient(ellipse at 50% 40%, #1a2e22 0%, #090f0b 100%);
     }
 
-    /* ════════════════════════════════
-       3D MODEL LAYER — on floor
-    ════════════════════════════════ */
-    #model-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-      pointer-events: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* model-viewer fills the whole screen so the 3D dish
-       appears to sit on the real floor captured by camera */
+    /*
+      model-viewer fills the whole screen.
+      When the user taps "View in AR", we call
+      mv.activateAR() → the browser/OS takes over
+      and opens the REAL AR session on its own.
+      The menu UI disappears during that session
+      and comes back when AR is dismissed.
+    */
     #ar-model-viewer {
       width: 100vw;
       height: 100svh;
@@ -77,23 +63,26 @@
       background: transparent;
       --progress-bar-color: var(--gold);
       --progress-mask: transparent;
-      pointer-events: auto;
     }
 
-    /* When no model is loaded yet, hide the viewer */
     #ar-model-viewer.hidden {
       opacity: 0;
       pointer-events: none;
     }
 
-    /* ════════════════════════════════
-       UI OVERLAY — on top of everything
-    ════════════════════════════════ */
+    /* Hide model-viewer's own AR button — we drive it ourselves */
+    #ar-model-viewer::part(default-ar-button) {
+      display: none !important;
+    }
+
+    /* ─────────────────────────────────────
+       UI OVERLAY
+    ───────────────────────────────────── */
     #ui-overlay {
       position: fixed;
       inset: 0;
       z-index: 10;
-      pointer-events: none; /* children opt-in */
+      pointer-events: none;
       display: flex;
       flex-direction: column;
     }
@@ -105,7 +94,7 @@
       justify-content: space-between;
       padding: 14px 20px 10px;
       pointer-events: auto;
-      background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, transparent 100%);
+      background: linear-gradient(180deg, rgba(0,0,0,0.75) 0%, transparent 100%);
     }
     .back-btn {
       width: 44px; height: 44px;
@@ -162,7 +151,6 @@
       border: 1.5px solid rgba(201,168,76,0.25);
       background: rgba(0,0,0,0.45);
       color: var(--muted);
-      font-family: 'DM Sans', sans-serif;
       font-size: 13px;
       cursor: pointer;
       transition: all 0.2s;
@@ -179,38 +167,85 @@
       color: var(--gold-lt);
     }
 
-    /* spacer — camera + 3D model visible in the middle */
+    /* spacer — 3D preview visible in the middle */
     .stage-spacer { flex: 1; }
 
-    /* ── DISH INFO CARD ── */
-    .dish-info-card {
+    /* ─────────────────────────────────────
+       DISH INFO + AR BUTTON (bottom panel)
+    ───────────────────────────────────── */
+    .dish-panel {
       pointer-events: auto;
-      padding: 0 20px 12px;
-      text-align: center;
-      /* glass panel */
-      background: linear-gradient(0deg, rgba(0,0,0,0.7) 60%, transparent 100%);
+      background: linear-gradient(0deg, rgba(0,0,0,0.88) 70%, transparent 100%);
+      padding: 0 20px 0;
     }
+
+    /* AR launch button — the REAL trigger */
+    .ar-launch-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 14px 0;
+      background: var(--gold);
+      color: #0a0a0a;
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      letter-spacing: 3px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: opacity 0.2s, transform 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ar-launch-btn:active { transform: scale(0.97); opacity: 0.85; }
+    .ar-launch-btn:disabled {
+      background: rgba(201,168,76,0.25);
+      color: rgba(201,168,76,0.4);
+      cursor: not-allowed;
+    }
+    .ar-launch-btn .ar-icon {
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    /* AR not supported notice */
+    .ar-unsupported {
+      display: none;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: rgba(201,168,76,0.45);
+      font-family: 'Cinzel', serif;
+      padding: 10px 0 14px;
+    }
+
     .dish-info-name {
       font-family: 'Playfair Display', serif;
-      font-size: clamp(20px, 5vw, 26px);
+      font-size: clamp(19px, 5vw, 24px);
       font-weight: 700;
       color: var(--cream);
-      margin-bottom: 5px;
+      margin-bottom: 4px;
       text-shadow: 0 2px 10px rgba(0,0,0,0.7);
     }
     .dish-info-desc {
-      font-size: 12.5px;
+      font-size: 12px;
       color: var(--muted);
       line-height: 1.6;
-      max-width: 300px;
-      margin: 0 auto 8px;
+      max-width: 320px;
+      margin-bottom: 7px;
       text-shadow: 0 1px 6px rgba(0,0,0,0.7);
     }
-    .dish-info-tags {
-      display: flex; gap: 6px;
-      justify-content: center;
-      margin-bottom: 8px;
+    .dish-info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      gap: 10px;
     }
+    .dish-info-tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .tag {
       font-size: 11px; padding: 3px 12px;
       border-radius: 20px; font-weight: 500;
@@ -219,58 +254,17 @@
       background: rgba(74,140,65,0.25);
       color: #8ddf7e;
       border: 1px solid rgba(74,140,65,0.35);
-      backdrop-filter: blur(4px);
     }
     .dish-info-price {
       font-family: 'Playfair Display', serif;
-      font-size: 26px;
+      font-size: 22px;
       color: var(--gold-lt);
-      margin-bottom: 4px;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      white-space: nowrap;
     }
     .dish-info-price .sym {
       font-family: 'DM Sans', sans-serif;
-      font-size: 14px;
+      font-size: 13px;
       color: var(--muted);
-    }
-
-    /* ── AR STATUS INDICATOR ── */
-    .ar-status {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      min-height: 24px;
-    }
-    .ar-status-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: var(--gold);
-      animation: pulse 1.6s ease-in-out infinite;
-      flex-shrink: 0;
-    }
-    .ar-status-dot.loading {
-      background: #888;
-      animation: spin-dot 0.8s linear infinite;
-    }
-    .ar-status-dot.placed {
-      background: #5cdb5c;
-      animation: none;
-    }
-    @keyframes pulse {
-      0%,100%{ opacity:1; transform:scale(1); }
-      50%    { opacity:0.3; transform:scale(0.6); }
-    }
-    @keyframes spin-dot {
-      to { transform: rotate(360deg); }
-    }
-    .ar-status-text {
-      font-size: 11px;
-      letter-spacing: 1.5px;
-      color: rgba(232,221,208,0.7);
-      font-family: 'Cinzel', serif;
-      text-transform: uppercase;
     }
 
     /* ── CARET ── */
@@ -290,7 +284,7 @@
     /* ── THUMBNAIL STRIP ── */
     .thumb-strip-wrap {
       pointer-events: auto;
-      padding-bottom: max(env(safe-area-inset-bottom), 18px);
+      padding-bottom: max(env(safe-area-inset-bottom), 16px);
     }
     .thumb-strip {
       display: flex;
@@ -312,7 +306,6 @@
       gap: 6px;
       cursor: pointer;
     }
-
     .thumb-ring {
       width: 68px; height: 68px;
       border-radius: 50%;
@@ -329,7 +322,6 @@
     }
     .thumb-item:hover  .thumb-ring { transform: scale(1.08); }
     .thumb-item:active .thumb-ring { transform: scale(0.93); }
-
     .thumb-inner {
       width: 100%; height: 100%;
       border-radius: 50%;
@@ -341,7 +333,6 @@
       width: 100%; height: 100%;
       object-fit: cover; display: block;
     }
-
     .thumb-item.active .thumb-ring::after {
       content: '';
       position: absolute;
@@ -352,7 +343,6 @@
       background: var(--gold);
       box-shadow: 0 0 8px rgba(201,168,76,0.9);
     }
-
     .thumb-label {
       font-size: 10px;
       color: rgba(232,221,208,0.55);
@@ -362,7 +352,6 @@
       overflow: hidden;
       text-overflow: ellipsis;
       transition: color 0.2s;
-      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
     }
     .thumb-item.active .thumb-label { color: var(--gold-lt); font-weight: 500; }
 
@@ -390,51 +379,45 @@
       color: var(--muted);
     }
 
-    /* ── CAMERA PERMISSION SCREEN ── */
-    .cam-permission {
-      position: fixed; inset: 0;
-      background: #000;
-      display: none;
+    /* ── MODEL LOADING INDICATOR (in the 3D area) ── */
+    .model-loading-badge {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      pointer-events: none;
+      z-index: 5;
+      display: flex;
       flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 16px;
-      z-index: 9998;
-      padding: 32px;
-      text-align: center;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transition: opacity 0.3s;
     }
-    .cam-permission.show { display: flex; }
-    .cam-perm-icon { font-size: 52px; }
-    .cam-perm-title {
+    .model-loading-badge.show { opacity: 1; }
+    .mlb-ring {
+      width: 36px; height: 36px;
+      border: 2px solid rgba(201,168,76,0.15);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.85s linear infinite;
+    }
+    .mlb-text {
       font-family: 'Cinzel', serif;
-      font-size: 16px; letter-spacing: 3px;
-      color: var(--gold);
-    }
-    .cam-perm-sub {
-      font-size: 13px; color: var(--muted);
-      line-height: 1.65; max-width: 280px;
-    }
-    .cam-perm-btn {
-      margin-top: 8px;
-      padding: 13px 32px;
-      background: var(--gold);
-      color: #000;
-      font-family: 'Cinzel', serif;
-      font-size: 13px; letter-spacing: 2px;
-      border: none; border-radius: 4px;
-      cursor: pointer;
-      font-weight: 600;
+      font-size: 9px; letter-spacing: 3px;
+      color: rgba(201,168,76,0.6);
     }
 
-    /* ── NO-MODEL TOAST ── */
-    .no-model-toast {
+    /* ── AR STATUS TOAST ── */
+    .ar-toast {
       position: fixed;
-      bottom: 180px; left: 50%;
-      transform: translateX(-50%) translateY(10px);
+      top: 90px; left: 50%;
+      transform: translateX(-50%) translateY(-6px);
       background: rgba(10,10,10,0.9);
       border: 1px solid rgba(201,168,76,0.3);
       color: var(--muted);
-      font-size: 12px; letter-spacing: 1px;
-      padding: 10px 22px;
+      font-family: 'Cinzel', serif;
+      font-size: 10px; letter-spacing: 2px;
+      padding: 9px 20px;
       border-radius: 30px;
       backdrop-filter: blur(8px);
       opacity: 0;
@@ -443,7 +426,7 @@
       z-index: 20;
       white-space: nowrap;
     }
-    .no-model-toast.show {
+    .ar-toast.show {
       opacity: 1;
       transform: translateX(-50%) translateY(0);
     }
@@ -451,26 +434,30 @@
 </head>
 <body>
 
-<!-- 1. CAMERA BACKGROUND -->
-<div id="camera-layer">
-  <video id="camera-video" autoplay playsinline muted></video>
-</div>
-
-<!-- 2. 3D MODEL — rendered on top of camera -->
-<div id="model-layer">
+<!-- ══════════════════════════════════════
+  model-viewer: 3D preview in the menu.
+  When user taps "VIEW IN AR", we call
+  mv.activateAR() — the browser/OS takes
+  over with real WebXR / ARKit / ARCore.
+  No fake camera. No overlay tricks.
+══════════════════════════════════════ -->
+<div id="preview-layer">
   <model-viewer
     id="ar-model-viewer"
     class="hidden"
     camera-controls
     touch-action="pan-y"
-    shadow-intensity="1"
-    shadow-softness="0.8"
+    shadow-intensity="1.2"
+    shadow-softness="0.9"
     environment-image="neutral"
     exposure="1.1"
-    camera-orbit="0deg 65deg 1.8m"
-    min-camera-orbit="auto auto 0.6m"
-    max-camera-orbit="auto auto 4m"
+    camera-orbit="25deg 70deg 1.6m"
+    min-camera-orbit="auto auto 0.4m"
+    max-camera-orbit="auto auto 5m"
     interaction-prompt="none"
+    auto-rotate
+    auto-rotate-delay="2000"
+    rotation-per-second="12deg"
     ar
     ar-modes="webxr scene-viewer quick-look"
     ar-placement="floor"
@@ -478,7 +465,7 @@
   ></model-viewer>
 </div>
 
-<!-- 3. UI OVERLAY -->
+<!-- UI OVERLAY -->
 <div id="ui-overlay">
 
   <div class="top-bar">
@@ -492,18 +479,35 @@
 
   <div class="cat-tabs" id="cat-tabs"></div>
 
-  <!-- camera + 3D visible here -->
   <div class="stage-spacer"></div>
 
-  <div class="dish-info-card">
-    <div class="ar-status" id="ar-status">
-      <div class="ar-status-dot" id="ar-dot"></div>
-      <span class="ar-status-text" id="ar-text">POINT AT A FLAT SURFACE</span>
+  <div class="dish-panel">
+
+    <!--
+      THE REAL AR BUTTON.
+      Calls mv.activateAR() which:
+        • Android Chrome/WebXR: opens WebXR session,
+          uses real camera + surface detection via ARCore.
+        • Android fallback: launches Scene Viewer (native Google AR).
+        • iOS Safari: opens AR Quick Look (ARKit, fullscreen native).
+      In all cases: the dish 3D model appears sitting on
+      your real table/floor. No fake overlay.
+    -->
+    <button class="ar-launch-btn" id="ar-btn" disabled>
+      <span class="ar-icon">⬡</span>
+      VIEW IN AR — PLACE ON TABLE
+    </button>
+    <div class="ar-unsupported" id="ar-unsupported">
+      AR NOT SUPPORTED ON THIS DEVICE
     </div>
-    <div class="dish-info-name"  id="info-name"></div>
-    <div class="dish-info-desc"  id="info-desc"></div>
-    <div class="dish-info-tags"  id="info-tags"></div>
-    <div class="dish-info-price" id="info-price"></div>
+
+    <div class="dish-info-name" id="info-name"></div>
+    <div class="dish-info-desc" id="info-desc"></div>
+    <div class="dish-info-row">
+      <div class="dish-info-tags" id="info-tags"></div>
+      <div class="dish-info-price" id="info-price"></div>
+    </div>
+
   </div>
 
   <div class="caret-row"><div class="caret"></div></div>
@@ -514,30 +518,25 @@
 
 </div>
 
-<!-- Loading -->
+<!-- Model loading spinner (centre of 3D area) -->
+<div class="model-loading-badge" id="mlb">
+  <div class="mlb-ring"></div>
+  <div class="mlb-text">LOADING MODEL</div>
+</div>
+
+<!-- AR feedback toast -->
+<div class="ar-toast" id="ar-toast"></div>
+
+<!-- App loading -->
 <div class="loading-overlay" id="loading">
   <div class="load-ring"></div>
   <p class="load-text">LOADING MENU</p>
 </div>
 
-<!-- Camera permission prompt -->
-<div class="cam-permission" id="cam-permission">
-  <div class="cam-perm-icon">📷</div>
-  <div class="cam-perm-title">CAMERA ACCESS</div>
-  <div class="cam-perm-sub">
-    PINOCCHIO uses your camera to place<br>
-    3D dishes on your table in the real world.
-  </div>
-  <button class="cam-perm-btn" id="cam-perm-btn">ALLOW CAMERA</button>
-</div>
-
-<!-- No model toast -->
-<div class="no-model-toast" id="no-model-toast">No 3D model for this dish</div>
-
 <script>
-/* ═══════════════════════════════════════
+/* ══════════════════════════════════════
    CONFIG
-═══════════════════════════════════════ */
+══════════════════════════════════════ */
 const ASSETS_BASE = '3d-model';
 
 const LOCAL_ASSETS = {
@@ -554,39 +553,40 @@ const EMOJI_MAP = {
 };
 const CAT_LABELS = { all:'All', starter:'Starters', 'main-course':'Mains', dessert:'Desserts' };
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTEkmIGoRgD1rQNmDgmY3lvB7WBOg86iOHHrS0MJ6qQiReuDHsUyX3YV7KoWXxTbefyBUWPTHpvUOt3/pub?output=csv';
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)||
-              (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
-/* ═══════════════════════════════════════
+/* ══════════════════════════════════════
    STATE
-═══════════════════════════════════════ */
-let allDishes=[], rawRows=[];
-let activeCategory='all';
-let activeDishIdx=0;
-let filteredDishes=[];
-let cameraStream=null;
-let modelLoaded=false;
-let toastTimer=null;
+══════════════════════════════════════ */
+let allDishes = [], filteredDishes = [];
+let activeCategory = 'all';
+let activeDishIdx = 0;
+let arAvailable = false;
+let currentModelLoaded = false;
 
-const mv = document.getElementById('ar-model-viewer');
+const mv       = document.getElementById('ar-model-viewer');
+const arBtn    = document.getElementById('ar-btn');
+const arToast  = document.getElementById('ar-toast');
+const mlb      = document.getElementById('mlb');
 
-/* ═══════════════════════════════════════
+/* ══════════════════════════════════════
    HELPERS
-═══════════════════════════════════════ */
+══════════════════════════════════════ */
 function norm(s){ return (s||'').toLowerCase().replace(/\s+/g,'-').trim(); }
+
 function getAssets(name){
-  const k=norm(name), e=LOCAL_ASSETS[k];
-  if(!e) return {poster:'',glb:'',usdz:'',scale:0.05};
-  const b=`${ASSETS_BASE}/${e.folder}/${e.file}`;
-  return {poster:`${b}.png`,glb:`${b}.glb`,usdz:`${b}.usdz`,scale:e.scale};
+  const k = norm(name), e = LOCAL_ASSETS[k];
+  if(!e) return {poster:'',glb:'',usdz:'',scale:0.1};
+  const b = `${ASSETS_BASE}/${e.folder}/${e.file}`;
+  return { poster:`${b}.png`, glb:`${b}.glb`, usdz:`${b}.usdz`, scale:e.scale };
 }
+
 function parseCSV(text){
-  const lines=text.trim().split('\n');
-  if(lines.length<2)return[];
-  const headers=splitLine(lines[0]).map(h=>h.trim().toLowerCase());
-  return lines.slice(1).map(line=>{
-    const vals=splitLine(line),obj={};
-    headers.forEach((h,i)=>{obj[h]=(vals[i]||'').trim();});
+  const lines = text.trim().split('\n');
+  if(lines.length < 2) return [];
+  const headers = splitLine(lines[0]).map(h => h.trim().toLowerCase());
+  return lines.slice(1).map(line => {
+    const vals = splitLine(line), obj = {};
+    headers.forEach((h,i) => { obj[h] = (vals[i]||'').trim(); });
     return obj;
   });
 }
@@ -599,142 +599,194 @@ function splitLine(line){
     if(ch===','&&!inQ){res.push(cur);cur='';continue;}
     cur+=ch;
   }
-  res.push(cur);return res;
+  res.push(cur); return res;
 }
-function truthy(v){return['true','yes','1'].includes((v||'').toLowerCase());}
+function truthy(v){ return ['true','yes','1'].includes((v||'').toLowerCase()); }
+
 function rowToDish(row){
-  const a=getAssets(row['name']);
-  return{
-    id:row['id']||'',name:row['name']||'',
+  const a = getAssets(row['name']);
+  return {
+    id:row['id']||'', name:row['name']||'',
     category:(row['category']||'other').toLowerCase(),
     desc:row['description']||'',
     price:parseInt(row['price']||'0',10),
-    veg:truthy(row['veg']),available:truthy(row['available']),
-    ...a,emoji:EMOJI_MAP[norm(row['name'])]||'🍽️',
+    veg:truthy(row['veg']), available:truthy(row['available']),
+    ...a, emoji:EMOJI_MAP[norm(row['name'])]||'🍽️',
   };
 }
 
-/* ═══════════════════════════════════════
-   CAMERA
-═══════════════════════════════════════ */
-async function startCamera(){
-  const video = document.getElementById('camera-video');
-  try {
-    // Prefer back (environment) camera for AR feel
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} },
-      audio:false
-    });
-    cameraStream = stream;
-    video.srcObject = stream;
-    await video.play();
-    document.getElementById('cam-permission').classList.remove('show');
-    return true;
-  } catch(err){
-    console.warn('Camera error:', err);
-    // Show permission prompt or just show dark bg — don't block the menu
-    document.getElementById('cam-permission').classList.add('show');
-    return false;
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+let _toastT;
+function showToast(msg, dur=2800){
+  clearTimeout(_toastT);
+  arToast.textContent = msg;
+  arToast.classList.add('show');
+  _toastT = setTimeout(() => arToast.classList.remove('show'), dur);
+}
+
+/* ══════════════════════════════════════
+   AR AVAILABILITY CHECK
+
+  model-viewer emits 'ar-status' with
+  status='not-presenting' when AR is
+  unavailable on the device/browser.
+  We also check mv.canActivateAR.
+══════════════════════════════════════ */
+function checkARSupport(){
+  // canActivateAR is set after model-viewer initialises
+  arAvailable = !!mv.canActivateAR;
+  if(!arAvailable){
+    arBtn.style.display = 'none';
+    document.getElementById('ar-unsupported').style.display = 'block';
   }
 }
 
-document.getElementById('cam-perm-btn').addEventListener('click', async ()=>{
-  document.getElementById('cam-permission').classList.remove('show');
-  await startCamera();
+/* ══════════════════════════════════════
+   THE AR BUTTON — calls activateAR()
+
+  This is the ONLY correct approach:
+  mv.activateAR() hands off to:
+    • WebXR  (Chrome Android, ARCore)    → real camera + plane detection
+    • Scene Viewer  (Android fallback)   → native AR app
+    • Quick Look    (iOS Safari/Chrome)  → ARKit fullscreen
+  The dish 3D model is placed on the
+  detected real-world floor/table.
+══════════════════════════════════════ */
+arBtn.addEventListener('click', async () => {
+  if(!currentModelLoaded){
+    showToast('MODEL STILL LOADING…');
+    return;
+  }
+  if(!mv.canActivateAR){
+    showToast('AR NOT AVAILABLE ON THIS DEVICE');
+    return;
+  }
+  try {
+    await mv.activateAR();
+    // The OS/browser takes over from here.
+    // On Android WebXR: shows real camera + places dish on surface.
+    // On iOS: Quick Look opens fullscreen with ARKit.
+  } catch(err){
+    console.warn('AR activation error:', err);
+    showToast('COULD NOT START AR SESSION');
+  }
 });
 
-/* ═══════════════════════════════════════
-   STATUS INDICATOR
-═══════════════════════════════════════ */
-function setStatus(state, text){
-  const dot  = document.getElementById('ar-dot');
-  const txt  = document.getElementById('ar-text');
-  dot.className  = 'ar-status-dot';
-  if(state==='loading') dot.classList.add('loading');
-  if(state==='placed')  dot.classList.add('placed');
-  txt.textContent = text;
-}
+/* ══════════════════════════════════════
+   model-viewer EVENT LISTENERS
+══════════════════════════════════════ */
 
-/* ═══════════════════════════════════════
+// Model finished loading → enable AR button
+mv.addEventListener('load', () => {
+  currentModelLoaded = true;
+  mlb.classList.remove('show');
+  mv.classList.remove('hidden');
+  // Re-check AR support now that a model is loaded
+  arAvailable = !!mv.canActivateAR;
+  if(arAvailable){
+    arBtn.disabled = false;
+    arBtn.querySelector('.ar-icon').textContent = '⬡';
+  }
+});
+
+// Model loading started
+mv.addEventListener('model-visibility', () => {});
+
+// Error loading model
+mv.addEventListener('error', () => {
+  currentModelLoaded = false;
+  mlb.classList.remove('show');
+  arBtn.disabled = true;
+  showToast('COULD NOT LOAD 3D MODEL');
+});
+
+// AR session status callbacks
+mv.addEventListener('ar-status', e => {
+  const s = e.detail.status;
+  if(s === 'session-started'){
+    // User is now in AR — UI is in background; WebXR session is live
+    console.log('AR session started');
+  }
+  if(s === 'object-placed'){
+    // Dish has been placed on a detected surface
+    showToast('DISH PLACED ON SURFACE ✓');
+  }
+  if(s === 'failed'){
+    showToast('AR UNAVAILABLE — OPEN IN CHROME ON ANDROID OR SAFARI ON iOS');
+  }
+  if(s === 'not-presenting'){
+    // AR ended / device does not support it
+    checkARSupport();
+  }
+});
+
+// Fires when user exits AR back to the page
+mv.addEventListener('ar-tracking', e => {
+  // e.detail.status: 'tracking' | 'not-tracking'
+});
+
+/* ══════════════════════════════════════
    LOAD MODEL INTO VIEWER
-═══════════════════════════════════════ */
+══════════════════════════════════════ */
 function loadModel(dish){
+  currentModelLoaded = false;
+  arBtn.disabled = true;
+
   if(!dish.glb){
     mv.classList.add('hidden');
-    setStatus('idle','NO 3D MODEL FOR THIS DISH');
-    showNoModelToast();
+    mlb.classList.remove('show');
+    arBtn.disabled = true;
+    showToast('NO 3D MODEL FOR THIS DISH');
     return;
   }
 
-  modelLoaded = false;
   mv.classList.remove('hidden');
-  setStatus('loading','LOADING 3D MODEL…');
+  mlb.classList.add('show');
 
-  // Set src + scale
-  const s=(dish.scale??1).toFixed(6);
-  mv.setAttribute('scale',`${s} ${s} ${s}`);
+  // Scale
+  const s = (dish.scale ?? 0.1).toFixed(6);
+  mv.setAttribute('scale', `${s} ${s} ${s}`);
 
-  // iOS USDZ
-  if(isIOS && dish.usdz){
-    mv.setAttribute('ios-src', dish.usdz);
-  } else {
-    mv.removeAttribute('ios-src');
+  // iOS USDZ for Quick Look
+  if(/iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+     (navigator.platform==='MacIntel' && navigator.maxTouchPoints > 1)){
+    if(dish.usdz) mv.setAttribute('ios-src', dish.usdz);
+    else          mv.removeAttribute('ios-src');
   }
 
-  // Poster
+  // Poster (low-res preview while GLB loads)
   if(dish.poster) mv.setAttribute('poster', dish.poster);
   else            mv.removeAttribute('poster');
 
+  // Setting src triggers model load
   mv.setAttribute('src', dish.glb);
 }
 
-// model-viewer events
-mv.addEventListener('load', ()=>{
-  modelLoaded = true;
-  setStatus('idle','DISH PLACED ON YOUR TABLE');
-  // The model is now visible in the 3D view overlaid on camera
-});
-mv.addEventListener('error', ()=>{
-  setStatus('idle','COULD NOT LOAD 3D MODEL');
-  mv.classList.add('hidden');
-});
-mv.addEventListener('ar-status', e=>{
-  const s = e.detail.status;
-  if(s==='session-started') setStatus('placed','PLACED ON SURFACE ✓');
-  if(s==='failed')          setStatus('idle','AR UNAVAILABLE ON THIS DEVICE');
-});
-
-/* ═══════════════════════════════════════
-   NO MODEL TOAST
-═══════════════════════════════════════ */
-function showNoModelToast(){
-  const t = document.getElementById('no-model-toast');
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(()=> t.classList.remove('show'), 2500);
-}
-
-/* ═══════════════════════════════════════
+/* ══════════════════════════════════════
    RENDER UI
-═══════════════════════════════════════ */
+══════════════════════════════════════ */
 function getFiltered(){
-  return activeCategory==='all' ? allDishes : allDishes.filter(d=>d.category===activeCategory);
+  return activeCategory === 'all'
+    ? allDishes
+    : allDishes.filter(d => d.category === activeCategory);
 }
 function getCategories(){
-  return ['all',...new Set(allDishes.map(d=>d.category))];
+  return ['all', ...new Set(allDishes.map(d => d.category))];
 }
 
 function renderCatTabs(){
-  const wrap=document.getElementById('cat-tabs');
-  wrap.innerHTML=getCategories().map(c=>
+  const wrap = document.getElementById('cat-tabs');
+  wrap.innerHTML = getCategories().map(c =>
     `<button class="cat-tab${c===activeCategory?' active':''}" data-cat="${c}">
        ${CAT_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))}
      </button>`
   ).join('');
-  wrap.querySelectorAll('.cat-tab').forEach(btn=>
-    btn.addEventListener('click',()=>{
-      activeCategory=btn.dataset.cat;
-      activeDishIdx=0;
+  wrap.querySelectorAll('.cat-tab').forEach(btn =>
+    btn.addEventListener('click', () => {
+      activeCategory = btn.dataset.cat;
+      activeDishIdx = 0;
       renderCatTabs();
       renderThumbStrip();
       selectDish(0);
@@ -743,10 +795,10 @@ function renderCatTabs(){
 }
 
 function renderThumbStrip(){
-  filteredDishes=getFiltered();
-  const strip=document.getElementById('thumb-strip');
-  strip.innerHTML=filteredDishes.map((d,i)=>{
-    const inner=d.poster
+  filteredDishes = getFiltered();
+  const strip = document.getElementById('thumb-strip');
+  strip.innerHTML = filteredDishes.map((d,i) => {
+    const inner = d.poster
       ? `<img src="${d.poster}" alt="${d.name}"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
          <span style="display:none;font-size:22px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
@@ -757,77 +809,71 @@ function renderThumbStrip(){
         <div class="thumb-label">${d.name.split(' ').slice(0,2).join(' ')}</div>
       </div>`;
   }).join('');
-
-  strip.querySelectorAll('.thumb-item').forEach(item=>{
-    item.addEventListener('click',()=>{
-      const idx=parseInt(item.dataset.idx);
-      activeDishIdx=idx;
+  strip.querySelectorAll('.thumb-item').forEach(item =>
+    item.addEventListener('click', () => {
+      activeDishIdx = parseInt(item.dataset.idx);
       updateThumbActive();
-      selectDish(idx);
-    });
-  });
-
+      selectDish(activeDishIdx);
+    })
+  );
   scrollThumbToActive();
 }
 
 function updateThumbActive(){
-  document.querySelectorAll('.thumb-item').forEach((el,i)=>
-    el.classList.toggle('active',i===activeDishIdx)
+  document.querySelectorAll('.thumb-item').forEach((el,i) =>
+    el.classList.toggle('active', i===activeDishIdx)
   );
   scrollThumbToActive();
 }
 function scrollThumbToActive(){
-  const el=document.querySelectorAll('.thumb-item')[activeDishIdx];
+  const el = document.querySelectorAll('.thumb-item')[activeDishIdx];
   if(el) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
 }
 
-/* ═══════════════════════════════════════
-   SELECT DISH — updates info + loads 3D
-═══════════════════════════════════════ */
+/* ══════════════════════════════════════
+   SELECT DISH
+══════════════════════════════════════ */
 function selectDish(idx){
-  filteredDishes=getFiltered();
-  const d=filteredDishes[idx];
+  filteredDishes = getFiltered();
+  const d = filteredDishes[idx];
   if(!d) return;
 
-  // Update info card
   document.getElementById('info-name').textContent = d.name;
   document.getElementById('info-desc').textContent = d.desc;
-  document.getElementById('info-price').innerHTML  =
+  document.getElementById('info-price').innerHTML =
     `<span class="sym">₹</span>${d.price.toLocaleString('en-IN')}`;
-  document.getElementById('info-tags').innerHTML   =
+  document.getElementById('info-tags').innerHTML =
     d.veg ? '<span class="tag tag-veg">🌿 Vegetarian</span>' : '';
 
-  // Load 3D model → appears on camera view directly
   loadModel(d);
 }
 
-/* ═══════════════════════════════════════
+/* ══════════════════════════════════════
    INIT
-═══════════════════════════════════════ */
+══════════════════════════════════════ */
 async function init(){
-  const loadEl=document.getElementById('loading');
-  try{
-    // Start camera immediately (in parallel with menu fetch)
-    startCamera(); // non-blocking
-
-    const res=await fetch(CSV_URL);
+  const loadEl = document.getElementById('loading');
+  try {
+    const res = await fetch(CSV_URL);
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text=await res.text();
-    rawRows=parseCSV(text);
-    allDishes=rawRows.map(rowToDish).filter(d=>d.name&&d.available);
+    const text = await res.text();
+    allDishes = parseCSV(text).map(rowToDish).filter(d => d.name && d.available);
     if(!allDishes.length) throw new Error('No dishes');
 
     loadEl.classList.add('hidden');
-    setTimeout(()=>{ loadEl.style.display='none'; },500);
+    setTimeout(() => { loadEl.style.display='none'; }, 500);
 
-    filteredDishes=getFiltered();
+    filteredDishes = getFiltered();
     renderCatTabs();
     renderThumbStrip();
     selectDish(0);
 
-  }catch(err){
+    // Check AR after first model load fires (canActivateAR needs a model)
+    setTimeout(checkARSupport, 1200);
+
+  } catch(err){
     console.error(err);
-    loadEl.innerHTML=`
+    loadEl.innerHTML = `
       <div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;">
         <div style="font-size:36px;margin-bottom:14px">🍽️</div>
         <div>Could not load menu</div>
