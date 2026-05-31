@@ -13,17 +13,16 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:        #0e1f1a;
-      --bg2:       #122319;
-      --surface:   rgba(255,255,255,0.04);
-      --gold:      #c9a84c;
-      --gold-lt:   #e8c97a;
-      --cream:     #f5ede0;
-      --text:      #e8ddd0;
-      --muted:     rgba(232,221,208,0.45);
-      --active:    #c9a84c;
-      --ring:      rgba(201,168,76,0.6);
-      --crimson:   #b03a2e;
+      --bg:      #0a0a0a;
+      --bg2:     #111;
+      --gold:    #c9a84c;
+      --gold-lt: #e8c97a;
+      --cream:   #f5ede0;
+      --text:    #e8ddd0;
+      --muted:   rgba(232,221,208,0.45);
+      --green:   #1a2e22;
+      --green2:  #223828;
+      --crimson: #b03a2e;
     }
 
     html, body {
@@ -34,65 +33,98 @@
       overflow: hidden;
     }
 
-    /* ─── LAYOUT SHELL ─── */
+    /* ── APP SHELL ── */
     .app {
       display: flex;
       flex-direction: column;
       height: 100svh;
-      max-width: 430px;
+      max-width: 480px;
       margin: 0 auto;
       position: relative;
-      overflow: hidden;
+      background: var(--bg);
     }
 
-    /* ─── TOP BAR ─── */
+    /* ── TOP BAR ── */
     .top-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 14px 20px 10px;
+      flex-shrink: 0;
       position: relative;
-      z-index: 10;
+      z-index: 20;
     }
     .back-btn {
-      width: 42px; height: 42px;
+      width: 44px; height: 44px;
       border-radius: 50%;
-      border: 1.5px solid rgba(201,168,76,0.3);
-      background: rgba(255,255,255,0.05);
+      border: 1.5px solid var(--green2);
+      background: var(--green);
       color: var(--gold);
-      font-size: 18px;
+      font-size: 20px;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
-      backdrop-filter: blur(6px);
     }
     .top-title {
       font-family: 'Cinzel', serif;
-      font-size: 15px;
-      letter-spacing: 3px;
-      color: var(--gold-lt);
+      font-size: 16px;
+      letter-spacing: 4px;
+      color: var(--gold);
     }
     .cart-btn {
-      width: 42px; height: 42px;
+      width: 44px; height: 44px;
       border-radius: 50%;
       background: var(--gold);
-      color: #0e1f1a;
-      font-size: 17px;
+      color: #0a0a0a;
+      font-size: 18px;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
       position: relative;
     }
     .cart-badge {
-      position: absolute; top: -3px; right: -3px;
-      width: 17px; height: 17px;
+      position: absolute; top: -2px; right: -2px;
+      width: 18px; height: 18px;
       border-radius: 50%;
       background: var(--crimson);
-      color: white;
-      font-size: 9px; font-weight: 600;
+      color: #fff;
+      font-size: 9px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
       font-family: 'DM Sans', sans-serif;
     }
 
-    /* ─── MAIN DISH DISPLAY ─── */
+    /* ── CATEGORY TABS ── */
+    .cat-tabs {
+      display: flex;
+      gap: 8px;
+      padding: 4px 20px 12px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      flex-shrink: 0;
+    }
+    .cat-tabs::-webkit-scrollbar { display: none; }
+    .cat-tab {
+      flex-shrink: 0;
+      padding: 8px 20px;
+      border-radius: 30px;
+      border: 1.5px solid rgba(201,168,76,0.2);
+      background: transparent;
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .cat-tab.active {
+      background: var(--gold);
+      color: #0a0a0a;
+      border-color: var(--gold);
+      font-weight: 600;
+    }
+    .cat-tab:hover:not(.active) {
+      border-color: rgba(201,168,76,0.5);
+      color: var(--gold-lt);
+    }
+
+    /* ── MAIN DISH STAGE ── */
     .dish-stage {
       flex: 1;
       display: flex;
@@ -100,159 +132,163 @@
       align-items: center;
       justify-content: center;
       position: relative;
-      padding: 0 20px;
+      min-height: 0;
+      padding: 0 20px 10px;
     }
 
-    /* Radial glow behind dish */
-    .dish-stage::before {
-      content: '';
+    /* Subtle radial glow */
+    .glow-bg {
       position: absolute;
-      width: 340px; height: 340px;
+      width: 380px; height: 380px;
       border-radius: 50%;
-      background: radial-gradient(ellipse, rgba(201,168,76,0.08) 0%, transparent 70%);
+      background: radial-gradient(ellipse, rgba(201,168,76,0.06) 0%, transparent 65%);
       pointer-events: none;
       top: 50%; left: 50%;
-      transform: translate(-50%, -52%);
+      transform: translate(-50%, -55%);
     }
 
-    /* Concentric ring decoration */
-    .ring-deco {
-      position: absolute;
-      border-radius: 50%;
-      border: 1px solid rgba(201,168,76,0.08);
-      pointer-events: none;
-      top: 50%; left: 50%;
-    }
-    .ring-deco:nth-child(1) { width: 280px; height: 280px; transform: translate(-50%,-52%); }
-    .ring-deco:nth-child(2) { width: 340px; height: 340px; transform: translate(-50%,-52%); border-color: rgba(201,168,76,0.04); }
-    .ring-deco:nth-child(3) { width: 400px; height: 400px; transform: translate(-50%,-52%); border-color: rgba(201,168,76,0.02); }
-
-    /* Main dish image circle */
-    .main-dish-wrap {
+    /* ── MAIN DISH CIRCLE ── */
+    .main-circle-wrap {
       position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Outer decorative ring */
+    .main-circle-outer {
+      width: 290px; height: 290px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.12);
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+
+    /* Inner dish image */
+    .main-circle {
       width: 260px; height: 260px;
       border-radius: 50%;
       overflow: hidden;
-      border: 2px solid rgba(201,168,76,0.2);
-      box-shadow:
-        0 0 60px rgba(0,0,0,0.6),
-        0 0 0 8px rgba(201,168,76,0.05),
-        0 0 0 16px rgba(201,168,76,0.025);
+      position: relative;
       cursor: pointer;
       transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
-      flex-shrink: 0;
+      box-shadow: 0 0 60px rgba(0,0,0,0.7), 0 0 0 6px rgba(201,168,76,0.08);
     }
-    .main-dish-wrap:hover { transform: scale(1.03); }
-    .main-dish-wrap:active { transform: scale(0.97); }
+    .main-circle:hover  { transform: scale(1.03); }
+    .main-circle:active { transform: scale(0.97); }
 
-    .main-dish-img {
+    .main-circle img {
       width: 100%; height: 100%;
       object-fit: cover;
       display: block;
-      transition: opacity 0.35s ease;
+      transition: opacity 0.3s;
     }
-    .main-dish-emoji {
+    .main-circle .emoji-fb {
       position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
+      display: none;
+      align-items: center; justify-content: center;
       font-size: 80px;
     }
 
-    /* AR tap hint */
-    .ar-tap-hint {
+    /* "VIEW" label overlay at bottom of circle */
+    .view-label {
       position: absolute;
-      bottom: -14px; left: 50%;
+      bottom: 12px; left: 50%;
       transform: translateX(-50%);
-      background: var(--gold);
-      color: #0e1f1a;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 9px; font-weight: 600;
-      letter-spacing: 2px;
-      padding: 4px 14px;
+      background: rgba(0,0,0,0.65);
+      color: var(--gold-lt);
+      font-family: 'Cinzel', serif;
+      font-size: 10px;
+      letter-spacing: 3px;
+      padding: 5px 16px;
       border-radius: 20px;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(201,168,76,0.25);
       white-space: nowrap;
-      text-transform: uppercase;
-      box-shadow: 0 4px 14px rgba(201,168,76,0.4);
-      animation: float 2s ease-in-out infinite;
-    }
-    @keyframes float {
-      0%,100% { transform: translateX(-50%) translateY(0); }
-      50%      { transform: translateX(-50%) translateY(-4px); }
+      z-index: 3;
+      pointer-events: none;
     }
 
-    /* Dish info below image */
+    /* Fade cover for transition */
+    .fade-cover {
+      position: absolute; inset: 0;
+      background: rgba(10,10,10,0.85);
+      border-radius: 50%;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 4;
+    }
+    .fade-cover.show { opacity: 1; }
+
+    /* ── DISH INFO ── */
     .dish-info {
-      margin-top: 28px;
+      margin-top: 22px;
       text-align: center;
       position: relative;
       z-index: 2;
+      width: 100%;
     }
     .dish-info-name {
       font-family: 'Playfair Display', serif;
-      font-size: 26px;
+      font-size: clamp(20px, 5vw, 26px);
       font-weight: 700;
-      letter-spacing: 0.02em;
       color: var(--cream);
       margin-bottom: 6px;
-      transition: opacity 0.25s;
+      line-height: 1.2;
     }
     .dish-info-desc {
       font-size: 13px;
       color: var(--muted);
-      line-height: 1.6;
-      max-width: 280px;
-      margin: 0 auto 12px;
-      transition: opacity 0.25s;
+      line-height: 1.65;
+      max-width: 300px;
+      margin: 0 auto 10px;
+    }
+    .dish-info-tags {
+      display: flex; gap: 6px; justify-content: center; margin-bottom: 8px;
+    }
+    .tag {
+      font-size: 11px; padding: 4px 12px;
+      border-radius: 20px; font-weight: 500;
+    }
+    .tag-veg {
+      background: rgba(74,140,65,0.18);
+      color: #7dcc6e;
+      border: 1px solid rgba(74,140,65,0.3);
     }
     .dish-info-price {
       font-family: 'Playfair Display', serif;
-      font-size: 24px;
+      font-size: 26px;
       color: var(--gold-lt);
-      transition: opacity 0.25s;
     }
-    .dish-info-price span {
+    .dish-info-price .sym {
       font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
+      font-size: 14px;
       color: var(--muted);
     }
-    .dish-info-tags {
-      display: flex; gap: 6px; justify-content: center; margin-top: 8px;
-    }
-    .tag {
-      font-size: 10px; padding: 3px 10px;
-      border-radius: 20px;
-      font-weight: 500; letter-spacing: 0.5px;
-    }
-    .tag-veg { background: rgba(74,140,65,0.2); color: #7dcc6e; border: 1px solid rgba(74,140,65,0.3); }
-    .tag-new { background: rgba(176,58,46,0.2); color: #e07b6f; border: 1px solid rgba(176,58,46,0.3); }
 
-    /* ─── ARROW INDICATOR ─── */
+    /* ── CARET ── */
     .caret-row {
       display: flex; justify-content: center;
-      padding: 6px 0 2px;
-      position: relative; z-index: 2;
+      padding: 8px 0 4px;
+      flex-shrink: 0;
     }
     .caret {
       width: 0; height: 0;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-top: 10px solid var(--gold);
-      filter: drop-shadow(0 2px 4px rgba(201,168,76,0.5));
-      opacity: 0;
-      transition: opacity 0.3s;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-top: 11px solid var(--gold);
+      filter: drop-shadow(0 2px 5px rgba(201,168,76,0.6));
     }
-    .caret.visible { opacity: 1; }
 
-    /* ─── THUMBNAIL STRIP ─── */
+    /* ── THUMBNAIL STRIP ── */
     .thumb-strip-wrap {
-      padding: 8px 0 max(env(safe-area-inset-bottom), 20px);
-      background: linear-gradient(0deg, rgba(10,18,15,0.95) 0%, transparent 100%);
-      position: relative;
+      flex-shrink: 0;
+      padding-bottom: max(env(safe-area-inset-bottom), 18px);
+      background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
     }
     .thumb-strip {
       display: flex;
-      gap: 14px;
+      gap: 16px;
       overflow-x: auto;
-      padding: 6px 20px 4px;
+      padding: 6px 24px 8px;
       scrollbar-width: none;
       scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
@@ -265,56 +301,56 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 7px;
       cursor: pointer;
-      transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
     }
-    .thumb-item:hover { transform: scale(1.08); }
-    .thumb-item:active { transform: scale(0.94); }
 
     .thumb-ring {
-      width: 64px; height: 64px;
+      width: 68px; height: 68px;
       border-radius: 50%;
-      border: 2px solid rgba(201,168,76,0.2);
+      border: 2.5px solid rgba(201,168,76,0.15);
       padding: 3px;
-      transition: border-color 0.25s, box-shadow 0.25s;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.25s cubic-bezier(.34,1.56,.64,1);
       position: relative;
     }
+    .thumb-item:hover  .thumb-ring { transform: scale(1.1); }
+    .thumb-item:active .thumb-ring { transform: scale(0.93); }
     .thumb-item.active .thumb-ring {
       border-color: var(--gold);
-      box-shadow: 0 0 0 3px rgba(201,168,76,0.15), 0 0 20px rgba(201,168,76,0.3);
+      box-shadow: 0 0 0 3px rgba(201,168,76,0.2), 0 0 18px rgba(201,168,76,0.35);
     }
-    .thumb-ring-inner {
+
+    .thumb-inner {
       width: 100%; height: 100%;
       border-radius: 50%;
       overflow: hidden;
-      background: rgba(255,255,255,0.05);
+      background: var(--green);
       display: flex; align-items: center; justify-content: center;
       font-size: 26px;
     }
-    .thumb-ring-inner img {
+    .thumb-inner img {
       width: 100%; height: 100%;
       object-fit: cover; display: block;
+      border-radius: 50%;
     }
 
-    /* Active dot */
+    /* Active dot below ring */
     .thumb-item.active .thumb-ring::after {
       content: '';
       position: absolute;
-      bottom: -6px; left: 50%;
+      bottom: -8px; left: 50%;
       transform: translateX(-50%);
       width: 6px; height: 6px;
       border-radius: 50%;
       background: var(--gold);
-      box-shadow: 0 0 8px rgba(201,168,76,0.7);
+      box-shadow: 0 0 8px rgba(201,168,76,0.8);
     }
 
     .thumb-label {
       font-size: 10px;
       color: var(--muted);
-      letter-spacing: 0.5px;
       text-align: center;
-      max-width: 64px;
+      max-width: 68px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -325,461 +361,439 @@
       font-weight: 500;
     }
 
-    /* ─── CATEGORY TABS ─── */
-    .cat-tabs {
-      display: flex;
-      gap: 6px;
-      padding: 0 20px 10px;
-      overflow-x: auto;
-      scrollbar-width: none;
+    /* ── HIDDEN model-viewer for AR ── */
+    /* We keep a hidden model-viewer at all times; clicking a dish icon
+       loads the model and immediately calls activateAR() */
+    #ar-mv-container {
+      position: fixed;
+      /* Off-screen but still rendered so model-viewer can load */
+      left: -9999px; top: -9999px;
+      width: 1px; height: 1px;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: -1;
     }
-    .cat-tabs::-webkit-scrollbar { display: none; }
-    .cat-tab {
-      flex-shrink: 0;
-      padding: 6px 16px;
-      border-radius: 20px;
-      border: 1px solid rgba(201,168,76,0.2);
-      background: transparent;
-      color: var(--muted);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 12px; letter-spacing: 0.5px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .cat-tab.active {
-      background: var(--gold);
-      color: #0e1f1a;
-      border-color: var(--gold);
-      font-weight: 600;
-    }
-    .cat-tab:hover:not(.active) {
-      border-color: rgba(201,168,76,0.5);
-      color: var(--gold-lt);
+    #ar-mv-container model-viewer {
+      width: 1px; height: 1px;
+      display: block;
     }
 
-    /* ─── LOADING STATE ─── */
+    /* ── AR LAUNCHING TOAST ── */
+    .ar-toast {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.85);
+      background: rgba(10,10,10,0.92);
+      border: 1px solid rgba(201,168,76,0.3);
+      border-radius: 16px;
+      padding: 28px 36px;
+      text-align: center;
+      z-index: 9999;
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    .ar-toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+      pointer-events: auto;
+    }
+    .ar-toast-icon {
+      font-size: 42px;
+      display: block;
+      margin-bottom: 12px;
+    }
+    .ar-toast-title {
+      font-family: 'Cinzel', serif;
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--gold-lt);
+      margin-bottom: 6px;
+    }
+    .ar-toast-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    .ar-toast-spinner {
+      width: 32px; height: 32px;
+      border: 2px solid rgba(201,168,76,0.15);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ar-toast-cancel {
+      background: none;
+      border: 1px solid rgba(201,168,76,0.25);
+      color: var(--muted);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      padding: 8px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .ar-toast-cancel:hover { border-color: var(--gold); color: var(--gold-lt); }
+
+    /* ── LOADING OVERLAY ── */
     .loading-overlay {
       position: fixed; inset: 0;
       background: var(--bg);
       display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 16px;
-      z-index: 1000;
+      flex-direction: column; gap: 14px;
+      z-index: 10000;
       transition: opacity 0.4s;
     }
     .loading-overlay.hidden { opacity: 0; pointer-events: none; }
     .load-ring {
-      width: 44px; height: 44px;
-      border: 2px solid rgba(201,168,76,0.15);
+      width: 40px; height: 40px;
+      border: 2px solid rgba(201,168,76,0.12);
       border-top-color: var(--gold);
       border-radius: 50%;
-      animation: spin 0.9s linear infinite;
+      animation: spin 0.85s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
     .load-text {
       font-family: 'Cinzel', serif;
-      font-size: 12px; letter-spacing: 3px;
+      font-size: 11px; letter-spacing: 4px;
       color: var(--muted);
     }
 
-    /* ─── AR MODAL ─── */
-    .ar-modal {
+    /* ── NO-AR FALLBACK SHEET ── */
+    /* Shows dish info when device doesn't support AR */
+    .info-sheet {
       display: none;
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.9);
-      z-index: 9000;
+      background: rgba(0,0,0,0.88);
+      z-index: 8000;
       align-items: flex-end;
       justify-content: center;
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(3px);
     }
-    .ar-modal.open { display: flex; }
-    @media (min-width: 520px) {
-      .ar-modal { align-items: center; padding: 20px; }
-    }
-
-    .ar-sheet {
-      background: #0e1f1a;
-      border: 1px solid rgba(201,168,76,0.2);
-      border-top: 3px solid var(--gold);
-      width: 100%; max-width: 430px;
-      max-height: 92svh;
-      overflow-y: auto;
-      overscroll-behavior: contain;
+    .info-sheet.open { display: flex; }
+    .info-sheet-card {
+      background: #111;
+      border-top: 2px solid var(--gold);
+      width: 100%; max-width: 480px;
+      padding: 24px 24px 40px;
       animation: slideUp 0.3s cubic-bezier(0.22,1,0.36,1);
+      position: relative;
     }
     @keyframes slideUp {
-      from { transform: translateY(60px); opacity: 0; }
+      from { transform: translateY(50px); opacity: 0; }
       to   { transform: none; opacity: 1; }
     }
-
-    .ar-sheet-viewer {
-      width: 100%; height: 300px;
-      background: #060f0d;
-      position: relative; overflow: hidden;
-    }
-
-    model-viewer {
-      display: block;
-      width: 100%; height: 300px;
-      background: transparent;
-      --progress-bar-color: var(--gold);
-    }
-
-    .ar-close {
-      position: absolute; top: 12px; right: 12px;
-      width: 36px; height: 36px;
+    .info-sheet-close {
+      position: absolute; top: 16px; right: 16px;
+      width: 32px; height: 32px;
       border-radius: 50%;
-      background: rgba(0,0,0,0.6);
+      background: rgba(255,255,255,0.05);
       border: 1px solid rgba(201,168,76,0.2);
-      color: var(--cream);
-      font-size: 15px;
+      color: var(--muted);
+      font-size: 14px;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; z-index: 10;
-      transition: background 0.15s;
+      cursor: pointer;
     }
-    .ar-close:hover { background: var(--crimson); }
-
-    .ar-sheet-body { padding: 20px 24px 28px; }
-    .ar-sheet-name {
+    .info-sheet-name {
       font-family: 'Playfair Display', serif;
-      font-size: 22px; font-weight: 700;
-      color: var(--cream); margin-bottom: 4px;
+      font-size: 22px; color: var(--cream);
+      margin-bottom: 8px;
     }
-    .ar-sheet-desc {
+    .info-sheet-desc {
       font-size: 13px; color: var(--muted);
       line-height: 1.7; margin-bottom: 16px;
     }
-    .ar-sheet-footer {
+    .info-sheet-foot {
       display: flex; align-items: center; justify-content: space-between;
-      padding-top: 16px;
-      border-top: 1px solid rgba(201,168,76,0.1);
     }
-    .ar-sheet-price {
+    .info-sheet-price {
       font-family: 'Playfair Display', serif;
-      font-size: 26px; color: var(--gold-lt);
+      font-size: 24px; color: var(--gold-lt);
     }
-    .ar-sheet-price span { font-family: 'DM Sans'; font-size: 13px; color: var(--muted); }
-
-    .launch-ar-btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      background: var(--gold);
-      color: #0e1f1a;
-      border: none;
-      padding: 12px 24px;
-      font-family: 'Cinzel', serif;
-      font-size: 12px; font-weight: 600;
-      letter-spacing: 2px;
-      cursor: pointer;
-      border-radius: 2px;
-      transition: opacity 0.15s, transform 0.1s;
-      min-height: 46px;
+    .info-sheet-no-ar {
+      font-size: 12px; color: var(--muted);
+      padding: 10px 18px;
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: 6px;
+      text-align: center;
+      line-height: 1.5;
     }
-    .launch-ar-btn:hover { opacity: 0.9; }
-    .launch-ar-btn:active { transform: scale(0.97); }
-    .launch-ar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    /* Placeholder emoji viewer */
-    .ar-emoji-viewer {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 90px;
-      background: radial-gradient(ellipse, rgba(201,168,76,0.06) 0%, transparent 70%);
-    }
-
-    /* Loading spinner on btn */
-    .btn-spinner {
-      width: 14px; height: 14px;
-      border: 2px solid rgba(14,31,26,0.3);
-      border-top-color: #0e1f1a;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      display: none;
-    }
-    .launch-ar-btn.loading .btn-spinner { display: block; }
-
-    /* Transition overlay for dish swap */
-    .fade-cover {
-      position: absolute; inset: 0;
-      background: radial-gradient(circle, rgba(14,31,26,0.95) 0%, transparent 70%);
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.15s;
-      border-radius: 50%;
-      z-index: 5;
-    }
-    .fade-cover.show { opacity: 1; }
   </style>
 </head>
 <body>
 
-<!-- Loading overlay -->
+<!-- Loading -->
 <div class="loading-overlay" id="loading">
   <div class="load-ring"></div>
   <p class="load-text">LOADING MENU</p>
 </div>
 
+<!-- Hidden AR model-viewer container -->
+<div id="ar-mv-container"></div>
+
+<!-- AR Launching Toast -->
+<div class="ar-toast" id="ar-toast">
+  <span class="ar-toast-icon">📱</span>
+  <div class="ar-toast-spinner" id="ar-spinner"></div>
+  <div class="ar-toast-title" id="ar-toast-title">LAUNCHING AR</div>
+  <div class="ar-toast-sub" id="ar-toast-sub">Point your camera at a flat surface<br>to place the dish in your space</div>
+  <button class="ar-toast-cancel" onclick="cancelAR()">Cancel</button>
+</div>
+
+<!-- No-AR info sheet (fallback for desktop/unsupported) -->
+<div class="info-sheet" id="info-sheet">
+  <div class="info-sheet-card">
+    <button class="info-sheet-close" onclick="closeInfoSheet()">✕</button>
+    <div class="info-sheet-name"  id="sheet-name"></div>
+    <div class="info-sheet-desc"  id="sheet-desc"></div>
+    <div class="info-sheet-foot">
+      <div class="info-sheet-price">
+        <span style="font-size:13px;font-family:'DM Sans';color:var(--muted)">₹</span>
+        <span id="sheet-price"></span>
+      </div>
+      <div class="info-sheet-no-ar" id="sheet-no-ar">
+        🖥️ AR requires a<br>mobile device
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
 <div class="app" id="app" style="display:none">
 
-  <!-- TOP BAR -->
   <div class="top-bar">
     <div class="back-btn">←</div>
     <div class="top-title">PINOCCHIO</div>
     <div class="cart-btn">
       🛒
-      <div class="cart-badge" id="cart-count">1</div>
+      <div class="cart-badge">1</div>
     </div>
   </div>
 
-  <!-- CATEGORY TABS -->
   <div class="cat-tabs" id="cat-tabs"></div>
 
-  <!-- MAIN STAGE -->
   <div class="dish-stage">
-    <div class="ring-deco"></div>
-    <div class="ring-deco"></div>
-    <div class="ring-deco"></div>
+    <div class="glow-bg"></div>
 
-    <div class="main-dish-wrap" id="main-dish-wrap" onclick="openARModal()">
-      <div class="fade-cover" id="fade-cover"></div>
-      <img class="main-dish-img" id="main-img" src="" alt="" />
-      <div class="main-dish-emoji" id="main-emoji" style="display:none"></div>
-      <div class="ar-tap-hint" id="ar-hint">TAP TO VIEW IN AR</div>
+    <div class="main-circle-wrap">
+      <div class="main-circle-outer">
+        <div class="main-circle" id="main-circle">
+          <div class="fade-cover" id="fade-cover"></div>
+          <img id="main-img" src="" alt="" />
+          <div class="emoji-fb" id="main-emoji"></div>
+          <div class="view-label" id="view-label">TAP TO VIEW IN AR</div>
+        </div>
+      </div>
     </div>
 
     <div class="dish-info">
-      <div class="dish-info-name" id="info-name"></div>
-      <div class="dish-info-desc" id="info-desc"></div>
-      <div class="dish-info-tags" id="info-tags"></div>
+      <div class="dish-info-name"  id="info-name"></div>
+      <div class="dish-info-desc"  id="info-desc"></div>
+      <div class="dish-info-tags"  id="info-tags"></div>
       <div class="dish-info-price" id="info-price"></div>
     </div>
   </div>
 
-  <!-- CARET -->
-  <div class="caret-row">
-    <div class="caret" id="caret"></div>
-  </div>
+  <div class="caret-row"><div class="caret"></div></div>
 
-  <!-- THUMBNAIL STRIP -->
   <div class="thumb-strip-wrap">
     <div class="thumb-strip" id="thumb-strip"></div>
   </div>
 
 </div>
 
-<!-- AR MODAL -->
-<div class="ar-modal" id="ar-modal">
-  <div class="ar-sheet">
-    <div class="ar-sheet-viewer" id="ar-viewer-wrap">
-      <button class="ar-close" id="ar-close">✕</button>
-      <div class="ar-emoji-viewer" id="ar-emoji-fallback"></div>
-      <!-- model-viewer injected here -->
-    </div>
-    <div class="ar-sheet-body">
-      <div class="ar-sheet-name" id="modal-name"></div>
-      <div class="ar-sheet-desc" id="modal-desc"></div>
-      <div class="ar-sheet-footer">
-        <div class="ar-sheet-price">
-          <span>₹</span><span id="modal-price"></span>
-        </div>
-        <button class="launch-ar-btn" id="launch-ar-btn" onclick="launchAR()">
-          <div class="btn-spinner"></div>
-          <span id="launch-btn-text">✦ Place on Table</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <script>
-/* ─── DATA ─── */
+/* ═══════════════════════════════════════════
+   DATA & CONFIG
+═══════════════════════════════════════════ */
 const ASSETS_BASE = '3d-model';
 
 const LOCAL_ASSETS = {
-  'pistachio-sauce-bigne-with-ricotta': { folder: 'Pistachio-Sauce-Bigne-with-Ricotta', file: 'Pistachio-Sauce-Bigne-with-Ricotta', scale: 0.25 },
-  'pinocchio-tiramisu':                 { folder: 'Pinocchio-Tiramisu',                 file: 'Pinocchio-Tiramisu',                 scale: 0.25 },
-  'cheesy-green-lasagne':               { folder: 'Cheesy-Green-Lasagne',               file: 'Cheesy-Green-Lasagne',               scale: 0.12 },
-  'fried-calamari':                     { folder: 'Fried-Calamari',                     file: 'Fried-Calamari',                     scale: 0.25 },
+  'pistachio-sauce-bigne-with-ricotta': { folder:'Pistachio-Sauce-Bigne-with-Ricotta', file:'Pistachio-Sauce-Bigne-with-Ricotta', scale:0.25 },
+  'pinocchio-tiramisu':                 { folder:'Pinocchio-Tiramisu',                 file:'Pinocchio-Tiramisu',                 scale:0.25 },
+  'cheesy-green-lasagne':               { folder:'Cheesy-Green-Lasagne',               file:'Cheesy-Green-Lasagne',               scale:0.12 },
+  'fried-calamari':                     { folder:'Fried-Calamari',                     file:'Fried-Calamari',                     scale:0.25 },
 };
 
 const EMOJI_MAP = {
-  'pistachio-sauce-bigne-with-ricotta': '🍮',
-  'pinocchio-tiramisu':                 '🍰',
-  'cheesy-green-lasagne':               '🧀',
-  'fried-calamari':                     '🦑',
+  'pistachio-sauce-bigne-with-ricotta':'🍮',
+  'pinocchio-tiramisu':'🍰',
+  'cheesy-green-lasagne':'🧀',
+  'fried-calamari':'🦑',
 };
 
-const CAT_LABELS = {
-  all: 'All', starter: 'Starters', 'main-course': 'Mains', dessert: 'Desserts'
-};
+const CAT_LABELS = { all:'All', starter:'Starters', 'main-course':'Mains', dessert:'Desserts' };
 
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTEkmIGoRgD1rQNmDgmY3lvB7WBOg86iOHHrS0MJ6qQiReuDHsUyX3YV7KoWXxTbefyBUWPTHpvUOt3/pub?output=csv';
 
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-/* ─── STATE ─── */
+/* ═══════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════ */
 let allDishes = [], rawRows = [];
 let activeCategory = 'all';
-let activeDishIdx = 0;
+let activeDishIdx  = 0;
 let filteredDishes = [];
-let mvInstance = null;
+let currentMV      = null;  // current model-viewer element
+let arCancelled    = false;
 
-/* ─── HELPERS ─── */
-function normalizeKey(str) {
-  return (str || '').toLowerCase().replace(/\s+/g, '-').trim();
+/* ═══════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════ */
+function normalizeKey(str){
+  return (str||'').toLowerCase().replace(/\s+/g,'-').trim();
 }
-
-function getAssets(dishName) {
-  const key = normalizeKey(dishName);
-  const e = LOCAL_ASSETS[key];
-  if (!e) return { poster: '', glb: '', usdz: '', scale: 0.05 };
-  const base = `${ASSETS_BASE}/${e.folder}/${e.file}`;
-  return { poster: `${base}.png`, glb: `${base}.glb`, usdz: `${base}.usdz`, scale: e.scale };
+function getAssets(name){
+  const k = normalizeKey(name);
+  const e = LOCAL_ASSETS[k];
+  if(!e) return {poster:'',glb:'',usdz:'',scale:0.05};
+  const b = `${ASSETS_BASE}/${e.folder}/${e.file}`;
+  return {poster:`${b}.png`, glb:`${b}.glb`, usdz:`${b}.usdz`, scale:e.scale};
 }
-
-function parseCSV(text) {
+function parseCSV(text){
   const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = splitLine(lines[0]).map(h => h.trim().toLowerCase());
-  return lines.slice(1).map(line => {
-    const vals = splitLine(line), obj = {};
-    headers.forEach((h, i) => { obj[h] = (vals[i] || '').trim(); });
+  if(lines.length<2) return [];
+  const headers = splitLine(lines[0]).map(h=>h.trim().toLowerCase());
+  return lines.slice(1).map(line=>{
+    const vals=splitLine(line), obj={};
+    headers.forEach((h,i)=>{ obj[h]=(vals[i]||'').trim(); });
     return obj;
   });
 }
-
-function splitLine(line) {
-  const result = []; let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (ch === '"' && !inQ) { inQ = true; continue; }
-    if (ch === '"' && inQ)  { if (line[i+1] === '"') { cur += '"'; i++; } else { inQ = false; } continue; }
-    if (ch === ',' && !inQ) { result.push(cur); cur = ''; continue; }
-    cur += ch;
+function splitLine(line){
+  const res=[]; let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'&&!inQ){inQ=true;continue;}
+    if(ch==='"'&&inQ){if(line[i+1]==='"'){cur+='"';i++;}else{inQ=false;}continue;}
+    if(ch===','&&!inQ){res.push(cur);cur='';continue;}
+    cur+=ch;
   }
-  result.push(cur); return result;
+  res.push(cur); return res;
 }
+function truthy(v){ return ['true','yes','1'].includes((v||'').toLowerCase()); }
 
-function truthy(v) { return ['true','yes','1'].includes((v||'').toLowerCase()); }
-
-function rowToDish(row) {
-  const assets = getAssets(row['name']);
+function rowToDish(row){
+  const a = getAssets(row['name']);
   return {
-    id:        row['id'] || '',
-    name:      row['name'] || '',
-    category:  (row['category'] || 'other').toLowerCase(),
-    desc:      row['description'] || '',
-    price:     parseInt(row['price'] || '0', 10),
-    veg:       truthy(row['veg']),
-    available: truthy(row['available']),
-    ...assets,
-    emoji:     EMOJI_MAP[normalizeKey(row['name'])] || '🍽️',
+    id:       row['id']||'',
+    name:     row['name']||'',
+    category: (row['category']||'other').toLowerCase(),
+    desc:     row['description']||'',
+    price:    parseInt(row['price']||'0',10),
+    veg:      truthy(row['veg']),
+    available:truthy(row['available']),
+    ...a,
+    emoji: EMOJI_MAP[normalizeKey(row['name'])]||'🍽️',
   };
 }
 
-/* ─── RENDER ─── */
-function getCategories() {
-  const cats = ['all', ...new Set(allDishes.map(d => d.category))];
-  return cats;
+/* ═══════════════════════════════════════════
+   RENDER
+═══════════════════════════════════════════ */
+function getFiltered(){
+  return activeCategory==='all' ? allDishes : allDishes.filter(d=>d.category===activeCategory);
+}
+function getCategories(){
+  return ['all',...new Set(allDishes.map(d=>d.category))];
 }
 
-function renderCatTabs() {
+function renderCatTabs(){
   const wrap = document.getElementById('cat-tabs');
-  const cats = getCategories();
-  wrap.innerHTML = cats.map(c =>
-    `<button class="cat-tab${c === activeCategory ? ' active' : ''}" data-cat="${c}">
-      ${CAT_LABELS[c] || (c.charAt(0).toUpperCase() + c.slice(1))}
-    </button>`
+  wrap.innerHTML = getCategories().map(c=>
+    `<button class="cat-tab${c===activeCategory?' active':''}" data-cat="${c}">
+       ${CAT_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))}
+     </button>`
   ).join('');
-  wrap.querySelectorAll('.cat-tab').forEach(btn =>
-    btn.addEventListener('click', () => {
+  wrap.querySelectorAll('.cat-tab').forEach(btn=>
+    btn.addEventListener('click',()=>{
       activeCategory = btn.dataset.cat;
-      activeDishIdx = 0;
+      activeDishIdx  = 0;
       renderCatTabs();
       renderThumbStrip();
-      updateMainDish(0, true);
+      updateMainDish(0,true);
     })
   );
 }
 
-function getFiltered() {
-  return activeCategory === 'all' ? allDishes : allDishes.filter(d => d.category === activeCategory);
-}
-
-function renderThumbStrip() {
+function renderThumbStrip(){
   filteredDishes = getFiltered();
   const strip = document.getElementById('thumb-strip');
-  strip.innerHTML = filteredDishes.map((d, i) => {
-    const imgOrEmoji = d.poster
-      ? `<img src="${d.poster}" alt="${d.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-           style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
-         <span style="display:none;font-size:24px;width:100%;height:100%;align-items:center;justify-content:center;border-radius:50%;">${d.emoji}</span>`
+  strip.innerHTML = filteredDishes.map((d,i)=>{
+    const inner = d.poster
+      ? `<img src="${d.poster}" alt="${d.name}"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+         <span style="display:none;font-size:24px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
       : `<span style="font-size:24px;">${d.emoji}</span>`;
-
     return `
-      <div class="thumb-item${i === activeDishIdx ? ' active' : ''}" data-idx="${i}">
+      <div class="thumb-item${i===activeDishIdx?' active':''}" data-idx="${i}">
         <div class="thumb-ring">
-          <div class="thumb-ring-inner">${imgOrEmoji}</div>
+          <div class="thumb-inner">${inner}</div>
         </div>
         <div class="thumb-label">${d.name.split(' ').slice(0,2).join(' ')}</div>
       </div>`;
   }).join('');
 
-  strip.querySelectorAll('.thumb-item').forEach(item =>
-    item.addEventListener('click', () => {
+  strip.querySelectorAll('.thumb-item').forEach(item=>{
+    item.addEventListener('click',()=>{
       const idx = parseInt(item.dataset.idx);
-      if (idx === activeDishIdx) { openARModal(); return; }
+      // Switch active dish on the main stage
       activeDishIdx = idx;
       updateThumbActive();
       updateMainDish(idx, true);
-    })
-  );
-
-  // scroll active into view
-  const activeEl = strip.querySelector('.thumb-item.active');
-  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-}
-
-function updateThumbActive() {
-  document.querySelectorAll('.thumb-item').forEach((el, i) => {
-    el.classList.toggle('active', i === activeDishIdx);
+      // Then immediately launch AR for this dish
+      const d = filteredDishes[idx];
+      if(d) triggerAR(d);
+    });
   });
-  const activeEl = document.querySelectorAll('.thumb-item')[activeDishIdx];
-  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+  scrollThumbToActive();
 }
 
-function updateMainDish(idx, animate = false) {
+function updateThumbActive(){
+  document.querySelectorAll('.thumb-item').forEach((el,i)=>{
+    el.classList.toggle('active', i===activeDishIdx);
+  });
+  scrollThumbToActive();
+}
+
+function scrollThumbToActive(){
+  const el = document.querySelectorAll('.thumb-item')[activeDishIdx];
+  if(el) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+}
+
+function updateMainDish(idx, animate=false){
   filteredDishes = getFiltered();
   const d = filteredDishes[idx];
-  if (!d) return;
+  if(!d) return;
 
   const fadeCover = document.getElementById('fade-cover');
-  const caret = document.getElementById('caret');
-
-  if (animate) {
+  if(animate){
     fadeCover.classList.add('show');
-    setTimeout(() => {
-      setMainDishContent(d);
-      fadeCover.classList.remove('show');
-    }, 150);
+    setTimeout(()=>{ setMainContent(d); fadeCover.classList.remove('show'); }, 150);
   } else {
-    setMainDishContent(d);
+    setMainContent(d);
   }
 
-  // Show caret on active thumb
-  caret.classList.add('visible');
-
-  // Update AR hint visibility
-  document.getElementById('ar-hint').textContent = d.glb ? 'TAP TO VIEW IN AR' : 'TAP FOR DETAILS';
+  // Update view label
+  const lbl = document.getElementById('view-label');
+  lbl.textContent = d.glb ? 'TAP TO VIEW IN AR' : 'TAP FOR DETAILS';
 }
 
-function setMainDishContent(d) {
-  const img = document.getElementById('main-img');
-  const emojiEl = document.getElementById('main-emoji');
+function setMainContent(d){
+  const img      = document.getElementById('main-img');
+  const emojiEl  = document.getElementById('main-emoji');
 
-  if (d.poster) {
+  if(d.poster){
     img.src = d.poster;
     img.style.display = 'block';
     emojiEl.style.display = 'none';
-    img.onerror = () => {
+    img.onerror = ()=>{
       img.style.display = 'none';
       emojiEl.textContent = d.emoji;
       emojiEl.style.display = 'flex';
@@ -790,171 +804,186 @@ function setMainDishContent(d) {
     emojiEl.style.display = 'flex';
   }
 
-  document.getElementById('info-name').textContent  = d.name;
-  document.getElementById('info-desc').textContent  = d.desc;
-  document.getElementById('info-price').innerHTML   =
-    `<span style="font-size:14px;font-family:'DM Sans',sans-serif;color:var(--muted)">₹</span>${d.price.toLocaleString('en-IN')}`;
+  document.getElementById('info-name').textContent = d.name;
+  document.getElementById('info-desc').textContent = d.desc;
+  document.getElementById('info-price').innerHTML  =
+    `<span class="sym">₹</span>${d.price.toLocaleString('en-IN')}`;
 
   const tagsEl = document.getElementById('info-tags');
-  tagsEl.innerHTML = [
-    d.veg ? '<span class="tag tag-veg">🌿 Vegetarian</span>' : '',
-  ].join('');
+  tagsEl.innerHTML = d.veg ? '<span class="tag tag-veg">🌿 Vegetarian</span>' : '';
 }
 
-/* ─── AR MODAL  ─── */
-function openARModal() {
+/* ═══════════════════════════════════════════
+   MAIN CIRCLE TAP → AR
+═══════════════════════════════════════════ */
+document.getElementById('main-circle').addEventListener('click', ()=>{
   filteredDishes = getFiltered();
   const d = filteredDishes[activeDishIdx];
-  if (!d) return;
+  if(d) triggerAR(d);
+});
 
-  document.getElementById('modal-name').textContent = d.name;
-  document.getElementById('modal-desc').textContent = d.desc;
-  document.getElementById('modal-price').textContent = d.price.toLocaleString('en-IN');
-
-  const vw = document.getElementById('ar-viewer-wrap');
-  // Clear previous model
-  const oldMv = vw.querySelector('model-viewer');
-  if (oldMv) oldMv.remove();
-  mvInstance = null;
-
-  const fallback = document.getElementById('ar-emoji-fallback');
-
-  if (d.poster) {
-    fallback.innerHTML = `
-      <img src="${d.poster}" alt="${d.name}"
-        style="width:100%;height:100%;object-fit:cover;display:block;"
-        onerror="this.style.display='none'">`;
-  } else {
-    fallback.textContent = d.emoji;
-  }
-
-  const btn = document.getElementById('launch-ar-btn');
-  btn.disabled = false;
-  btn.classList.remove('loading');
-  document.getElementById('launch-btn-text').textContent = d.glb ? '✦ Place on Table' : '✦ No 3D Model';
-  if (!d.glb) btn.disabled = true;
-
-  document.getElementById('ar-modal').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function launchAR() {
-  filteredDishes = getFiltered();
-  const d = filteredDishes[activeDishIdx];
-  if (!d || !d.glb) return;
-
-  const btn = document.getElementById('launch-ar-btn');
-  const vw = document.getElementById('ar-viewer-wrap');
-
-  if (mvInstance) {
-    mvInstance.activateAR();
+/* ═══════════════════════════════════════════
+   AR LAUNCH — CORE
+═══════════════════════════════════════════ */
+function triggerAR(dish){
+  if(!dish.glb){
+    // No 3D model — show info sheet
+    showInfoSheet(dish);
     return;
   }
 
-  btn.disabled = true;
-  btn.classList.add('loading');
-  document.getElementById('launch-btn-text').textContent = 'Loading…';
+  arCancelled = false;
+  showARToast(dish, 'loading');
+
+  // Remove any previous model-viewer
+  const container = document.getElementById('ar-mv-container');
+  container.innerHTML = '';
+  currentMV = null;
 
   const mv = document.createElement('model-viewer');
-  mv.setAttribute('src', d.glb);
-  if (isIOS && d.usdz) mv.setAttribute('ios-src', d.usdz);
+  mv.setAttribute('src', dish.glb);
+  if(isIOS && dish.usdz) mv.setAttribute('ios-src', dish.usdz);
 
-  const s = (d.scale ?? 1).toFixed(6);
-  mv.setAttribute('scale', `${s} ${s} ${s}`);
-  mv.setAttribute('ar', '');
-  mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
-  mv.setAttribute('ar-placement', 'floor');
-  mv.setAttribute('ar-scale', 'fixed');
-  mv.setAttribute('camera-controls', '');
-  mv.setAttribute('shadow-intensity', '1');
-  mv.setAttribute('shadow-softness', '0.8');
-  mv.setAttribute('environment-image', 'neutral');
-  mv.setAttribute('exposure', '1.1');
-  mv.setAttribute('camera-orbit', '0deg 75deg 105%');
-  mv.setAttribute('min-camera-orbit', 'auto auto 60%');
-  mv.setAttribute('max-camera-orbit', 'auto auto 140%');
+  const s = (dish.scale ?? 1).toFixed(6);
+  mv.setAttribute('scale',              `${s} ${s} ${s}`);
+  mv.setAttribute('ar',                 '');
+  mv.setAttribute('ar-modes',           'webxr scene-viewer quick-look');
+  mv.setAttribute('ar-placement',       'floor');
+  mv.setAttribute('ar-scale',           'fixed');
+  mv.setAttribute('camera-controls',    '');
+  mv.setAttribute('shadow-intensity',   '1');
+  mv.setAttribute('shadow-softness',    '0.8');
+  mv.setAttribute('environment-image',  'neutral');
+  mv.setAttribute('exposure',           '1.1');
+  mv.setAttribute('camera-orbit',       '0deg 75deg 105%');
   mv.setAttribute('interaction-prompt', 'none');
-  mv.setAttribute('loading', 'eager');
-  mv.setAttribute('reveal', 'auto');
-  mv.setAttribute('touch-action', 'pan-y');
-  mv.style.cssText = `
-    position:absolute; inset:0;
-    width:100%; height:100%;
-    background:transparent;
-    touch-action:pan-y pinch-zoom;
-    z-index:2;
-    opacity:0;
-    pointer-events:none;
-  `;
+  mv.setAttribute('loading',            'eager');
+  mv.setAttribute('reveal',             'auto');
+  mv.setAttribute('touch-action',       'pan-y');
+  mv.style.cssText = 'width:1px;height:1px;display:block;';
 
-  vw.appendChild(mv);
-  mvInstance = mv;
+  container.appendChild(mv);
+  currentMV = mv;
 
-  mv.addEventListener('load', () => {
-    mv.style.opacity = '1';
-    mv.style.pointerEvents = 'auto';
-
-    btn.disabled = false;
-    btn.classList.remove('loading');
-    document.getElementById('launch-btn-text').textContent = '✦ Place on Table';
-
-    // Auto-launch AR
+  mv.addEventListener('load', ()=>{
+    if(arCancelled) return;
+    // Model loaded — launch AR immediately
+    updateARToast(dish, 'ready');
     mv.activateAR();
 
-    mv.addEventListener('ar-status', (e) => {
-      if (e.detail.status === 'failed' || e.detail.status === 'not-presenting') {
-        btn.disabled = false;
-        btn.classList.remove('loading');
-        document.getElementById('launch-btn-text').textContent = '✦ Try Again';
+    mv.addEventListener('ar-status', (e)=>{
+      const s = e.detail.status;
+      if(s === 'session-started'){
+        // AR started — hide our toast (Scene Viewer / WebXR takes over UI)
+        hideARToast();
+      } else if(s === 'failed' || s === 'not-presenting'){
+        // AR not available on this device
+        hideARToast();
+        showInfoSheet(dish, true);
       }
-    }, { once: true });
+    }, { once:true });
+
+    // Quick Look (iOS) dismisses by restoring visibility;
+    // listen for document visibility to detect return
+    document.addEventListener('visibilitychange', onVisibilityReturn, { once:true });
   });
 
-  mv.addEventListener('error', () => {
-    btn.disabled = false;
-    btn.classList.remove('loading');
-    document.getElementById('launch-btn-text').textContent = '⚠ Load Failed';
-    mv.remove();
-    mvInstance = null;
+  mv.addEventListener('error', ()=>{
+    if(arCancelled) return;
+    hideARToast();
+    showInfoSheet(dish, false, true);
   });
 }
 
-function closeARModal() {
-  if (mvInstance && typeof mvInstance.pause === 'function') mvInstance.pause();
-  const vw = document.getElementById('ar-viewer-wrap');
-  const oldMv = vw.querySelector('model-viewer');
-  if (oldMv) oldMv.remove();
-  mvInstance = null;
+function onVisibilityReturn(){
+  // User returned from AR session (Quick Look / Scene Viewer)
+  hideARToast();
+}
 
-  document.getElementById('ar-modal').classList.remove('open');
+/* ═══════════════════════════════════════════
+   AR TOAST HELPERS
+═══════════════════════════════════════════ */
+function showARToast(dish, state){
+  const toast   = document.getElementById('ar-toast');
+  const spinner = document.getElementById('ar-spinner');
+  const title   = document.getElementById('ar-toast-title');
+  const sub     = document.getElementById('ar-toast-sub');
+
+  if(state === 'loading'){
+    spinner.style.display = 'block';
+    title.textContent     = 'LOADING MODEL…';
+    sub.textContent       = dish.name;
+  }
+  toast.classList.add('show');
+}
+
+function updateARToast(dish, state){
+  const spinner = document.getElementById('ar-spinner');
+  const title   = document.getElementById('ar-toast-title');
+  const sub     = document.getElementById('ar-toast-sub');
+
+  if(state === 'ready'){
+    spinner.style.display = 'none';
+    title.textContent     = 'LAUNCHING AR';
+    sub.innerHTML         = 'Point at a flat surface<br>to place the dish';
+  }
+}
+
+function hideARToast(){
+  document.getElementById('ar-toast').classList.remove('show');
+}
+
+function cancelAR(){
+  arCancelled = true;
+  hideARToast();
+  // Clean up model-viewer
+  const container = document.getElementById('ar-mv-container');
+  container.innerHTML = '';
+  currentMV = null;
+}
+
+/* ═══════════════════════════════════════════
+   INFO SHEET (fallback: no 3D / no AR support)
+═══════════════════════════════════════════ */
+function showInfoSheet(dish, noARDevice=false, loadError=false){
+  document.getElementById('sheet-name').textContent  = dish.name;
+  document.getElementById('sheet-desc').textContent  = dish.desc;
+  document.getElementById('sheet-price').textContent = dish.price.toLocaleString('en-IN');
+
+  const noAREl = document.getElementById('sheet-no-ar');
+  if(loadError){
+    noAREl.innerHTML = '⚠️ 3D model failed to load';
+  } else if(noARDevice){
+    noAREl.innerHTML = '📱 Open on a mobile<br>device to use AR';
+  } else {
+    noAREl.innerHTML = '🚫 No 3D model<br>available for this dish';
+  }
+
+  document.getElementById('info-sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeInfoSheet(){
+  document.getElementById('info-sheet').classList.remove('open');
   document.body.style.overflow = '';
 }
-
-document.getElementById('ar-close').addEventListener('click', closeARModal);
-document.getElementById('ar-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('ar-modal')) closeARModal();
-});
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeARModal(); });
-
-document.addEventListener('visibilitychange', () => {
-  if (!mvInstance) return;
-  document.hidden
-    ? (typeof mvInstance.pause === 'function' && mvInstance.pause())
-    : (typeof mvInstance.play  === 'function' && mvInstance.play());
+document.getElementById('info-sheet').addEventListener('click', e=>{
+  if(e.target === document.getElementById('info-sheet')) closeInfoSheet();
 });
 
-/* ─── INIT ─── */
-async function init() {
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
+async function init(){
   const loadEl = document.getElementById('loading');
   const appEl  = document.getElementById('app');
   try {
-    const res  = await fetch(CSV_URL);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    rawRows    = parseCSV(text);
-    allDishes  = rawRows.map(rowToDish).filter(d => d.name && d.available);
-
-    if (!allDishes.length) throw new Error('No dishes');
+    const res   = await fetch(CSV_URL);
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text  = await res.text();
+    rawRows     = parseCSV(text);
+    allDishes   = rawRows.map(rowToDish).filter(d=>d.name && d.available);
+    if(!allDishes.length) throw new Error('No dishes');
 
     loadEl.classList.add('hidden');
     appEl.style.display = 'flex';
@@ -964,17 +993,15 @@ async function init() {
     renderThumbStrip();
     updateMainDish(0, false);
 
-    setTimeout(() => {
-      loadEl.style.display = 'none';
-    }, 400);
+    setTimeout(()=>{ loadEl.style.display='none'; }, 400);
 
-  } catch (err) {
+  } catch(err){
     console.error('Menu error:', err);
     loadEl.innerHTML = `
       <div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;">
-        <div style="font-size:32px;margin-bottom:12px">🍽️</div>
+        <div style="font-size:36px;margin-bottom:14px">🍽️</div>
         <div>Could not load menu</div>
-        <div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif">Check your connection</div>
+        <div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif;letter-spacing:1px">Check connection &amp; try again</div>
       </div>`;
   }
 }
