@@ -6,539 +6,283 @@
   <title>PINOCCHIO — AR Menu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet" />
-  <!--
-    model-viewer handles ALL of:
-      Android  → WebXR (real surface detection via device sensor fusion)
-      Android  → Scene Viewer fallback (native Google AR app)
-      iOS      → Quick Look (ARKit, native fullscreen)
-    We call mv.activateAR() programmatically — no fake camera layer needed.
-  -->
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
-
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --gold:    #c9a84c;
-      --gold-lt: #e8c97a;
-      --cream:   #f5ede0;
-      --bg:      #0a0a0a;
-      --green:   #1a2e22;
-      --muted:   rgba(232,221,208,0.5);
-      --crimson: #b03a2e;
+      --gold: #c9a84c; --gold-lt: #e8c97a; --cream: #f5ede0;
+      --green: #1a2e22; --muted: rgba(232,221,208,0.55); --crimson: #b03a2e;
     }
+    html, body { height: 100%; overflow: hidden; background: #000;
+      font-family: 'DM Sans', sans-serif; color: var(--cream);
+      -webkit-font-smoothing: antialiased; }
 
-    html, body {
-      height: 100%;
-      overflow: hidden;
-      background: var(--bg);
-      font-family: 'DM Sans', sans-serif;
-      color: var(--cream);
-    }
+    /* LAYER 1 — LIVE CAMERA BACKGROUND
+       getUserMedia streams the back camera here.
+       The real table/surface is visible, exactly
+       like the screenshot you shared. */
+    #camera-bg { position: fixed; inset: 0; z-index: 0; background: #111; }
+    #cam-video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-    /* ─────────────────────────────────────
-       model-viewer sits in a PREVIEW panel
-       (no camera — just shows the 3D model
-        spinning on a dark/neutral bg)
-    ───────────────────────────────────── */
-    #preview-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      background: radial-gradient(ellipse at 50% 40%, #1a2e22 0%, #090f0b 100%);
-    }
-
-    /*
-      model-viewer fills the whole screen.
-      When the user taps "View in AR", we call
-      mv.activateAR() → the browser/OS takes over
-      and opens the REAL AR session on its own.
-      The menu UI disappears during that session
-      and comes back when AR is dismissed.
-    */
-    #ar-model-viewer {
-      width: 100vw;
-      height: 100svh;
-      display: block;
-      background: transparent;
+    /* LAYER 2 — model-viewer, TRANSPARENT background
+       The 3D dish renders on top of the camera image.
+       Because background is transparent, the real table
+       shows through — dish appears to sit on the table. */
+    #mv-layer { position: fixed; inset: 0; z-index: 1; }
+    model-viewer {
+      width: 100%; height: 100%;
+      background-color: transparent;
+      --poster-color: transparent;
       --progress-bar-color: var(--gold);
       --progress-mask: transparent;
     }
+    model-viewer.hidden { opacity: 0; pointer-events: none; }
+    model-viewer::part(default-ar-button) { display: none !important; }
 
-    #ar-model-viewer.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
+    /* LAYER 3 — UI */
+    #ui { position: fixed; inset: 0; z-index: 10; pointer-events: none;
+      display: flex; flex-direction: column; }
 
-    /* Hide model-viewer's own AR button — we drive it ourselves */
-    #ar-model-viewer::part(default-ar-button) {
-      display: none !important;
-    }
-
-    /* ─────────────────────────────────────
-       UI OVERLAY
-    ───────────────────────────────────── */
-    #ui-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ── TOP BAR ── */
+    /* TOP BAR */
     .top-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 20px 10px;
-      pointer-events: auto;
-      background: linear-gradient(180deg, rgba(0,0,0,0.75) 0%, transparent 100%);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px 10px; pointer-events: auto;
+      background: linear-gradient(180deg, rgba(0,0,0,0.52) 0%, transparent 100%);
     }
     .back-btn {
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      border: 1.5px solid rgba(201,168,76,0.35);
-      background: rgba(26,46,34,0.75);
-      color: var(--gold);
-      font-size: 20px;
+      width: 46px; height: 46px; border-radius: 50%;
+      background: var(--green); color: var(--gold-lt); font-size: 20px;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      backdrop-filter: blur(6px);
+      cursor: pointer; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
     .top-title {
-      font-family: 'Cinzel', serif;
-      font-size: 16px;
-      letter-spacing: 4px;
-      color: var(--gold);
-      text-shadow: 0 1px 8px rgba(0,0,0,0.8);
+      font-family: 'Cinzel', serif; font-size: 17px; letter-spacing: 5px;
+      color: var(--gold); text-shadow: 0 2px 10px rgba(0,0,0,0.9);
     }
     .cart-btn {
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      background: var(--gold);
-      color: #0a0a0a;
-      font-size: 18px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      position: relative;
+      width: 46px; height: 46px; border-radius: 50%; background: var(--gold);
+      color: #0a0a0a; font-size: 19px; display: flex; align-items: center;
+      justify-content: center; cursor: pointer; position: relative;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.4);
     }
     .cart-badge {
-      position: absolute; top: -2px; right: -2px;
-      width: 18px; height: 18px;
-      border-radius: 50%;
-      background: var(--crimson);
-      color: #fff;
-      font-size: 9px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
+      position: absolute; top: -3px; right: -3px; width: 19px; height: 19px;
+      border-radius: 50%; background: var(--crimson); color: #fff;
+      font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
     }
 
-    /* ── CATEGORY TABS ── */
-    .cat-tabs {
-      display: flex;
-      gap: 8px;
-      padding: 4px 20px 10px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      pointer-events: auto;
-    }
+    /* CATEGORY TABS */
+    .cat-tabs { display: flex; gap: 8px; padding: 2px 16px 8px;
+      overflow-x: auto; scrollbar-width: none; pointer-events: auto; }
     .cat-tabs::-webkit-scrollbar { display: none; }
     .cat-tab {
-      flex-shrink: 0;
-      padding: 7px 18px;
-      border-radius: 30px;
-      border: 1.5px solid rgba(201,168,76,0.25);
-      background: rgba(0,0,0,0.45);
-      color: var(--muted);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all 0.2s;
-      backdrop-filter: blur(4px);
+      flex-shrink: 0; padding: 7px 20px; border-radius: 30px; border: none;
+      background: rgba(0,0,0,0.38); color: rgba(232,221,208,0.7);
+      font-family: 'DM Sans', sans-serif; font-size: 13px;
+      cursor: pointer; transition: all 0.2s;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 1px 6px rgba(0,0,0,0.35);
     }
-    .cat-tab.active {
-      background: var(--gold);
-      color: #0a0a0a;
-      border-color: var(--gold);
-      font-weight: 600;
-    }
-    .cat-tab:hover:not(.active) {
-      border-color: rgba(201,168,76,0.5);
-      color: var(--gold-lt);
-    }
+    .cat-tab.active { background: var(--gold); color: #0a0a0a; font-weight: 600;
+      box-shadow: 0 2px 12px rgba(201,168,76,0.5); }
 
-    /* spacer — 3D preview visible in the middle */
-    .stage-spacer { flex: 1; }
+    .stage { flex: 1; }
 
-    /* ─────────────────────────────────────
-       DISH INFO + AR BUTTON (bottom panel)
-    ───────────────────────────────────── */
-    .dish-panel {
-      pointer-events: auto;
-      background: linear-gradient(0deg, rgba(0,0,0,0.88) 70%, transparent 100%);
-      padding: 0 20px 0;
-    }
+    /* BOTTOM PANEL */
+    .bottom-panel { pointer-events: auto; }
 
-    /* AR launch button — the REAL trigger */
-    .ar-launch-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      width: 100%;
-      padding: 14px 0;
-      background: var(--gold);
-      color: #0a0a0a;
-      font-family: 'Cinzel', serif;
-      font-size: 13px;
-      letter-spacing: 3px;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-bottom: 14px;
-      transition: opacity 0.2s, transform 0.15s;
-      -webkit-tap-highlight-color: transparent;
+    /* Dish info sits directly on the camera — matching the screenshot */
+    .dish-info {
+      padding: 0 18px 10px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.38) 65%, transparent 100%);
     }
-    .ar-launch-btn:active { transform: scale(0.97); opacity: 0.85; }
-    .ar-launch-btn:disabled {
-      background: rgba(201,168,76,0.25);
-      color: rgba(201,168,76,0.4);
-      cursor: not-allowed;
+    .dish-name {
+      font-family: 'Playfair Display', serif; font-size: clamp(20px, 5.5vw, 26px);
+      font-weight: 700; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+      margin-bottom: 4px; line-height: 1.2;
     }
-    .ar-launch-btn .ar-icon {
-      font-size: 18px;
-      line-height: 1;
+    .dish-desc {
+      font-size: 12.5px; color: rgba(245,237,224,0.7); line-height: 1.6;
+      margin-bottom: 8px; text-shadow: 0 1px 5px rgba(0,0,0,0.8); max-width: 340px;
     }
-
-    /* AR not supported notice */
-    .ar-unsupported {
-      display: none;
-      text-align: center;
-      font-size: 11px;
-      letter-spacing: 1.5px;
-      color: rgba(201,168,76,0.45);
-      font-family: 'Cinzel', serif;
-      padding: 10px 0 14px;
-    }
-
-    .dish-info-name {
-      font-family: 'Playfair Display', serif;
-      font-size: clamp(19px, 5vw, 24px);
-      font-weight: 700;
-      color: var(--cream);
-      margin-bottom: 4px;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.7);
-    }
-    .dish-info-desc {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.6;
-      max-width: 320px;
-      margin-bottom: 7px;
-      text-shadow: 0 1px 6px rgba(0,0,0,0.7);
-    }
-    .dish-info-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-      gap: 10px;
-    }
-    .dish-info-tags { display: flex; gap: 6px; flex-wrap: wrap; }
-    .tag {
-      font-size: 11px; padding: 3px 12px;
-      border-radius: 20px; font-weight: 500;
-    }
+    .dish-row { display: flex; align-items: center; justify-content: space-between; }
+    .dish-tags { display: flex; gap: 6px; }
     .tag-veg {
-      background: rgba(74,140,65,0.25);
-      color: #8ddf7e;
-      border: 1px solid rgba(74,140,65,0.35);
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 12px; padding: 4px 14px; border-radius: 20px; font-weight: 500;
+      background: rgba(26,46,34,0.88); color: #8ddf7e;
+      border: 1px solid rgba(74,140,65,0.4); backdrop-filter: blur(4px);
     }
-    .dish-info-price {
-      font-family: 'Playfair Display', serif;
-      font-size: 22px;
-      color: var(--gold-lt);
-      white-space: nowrap;
-    }
-    .dish-info-price .sym {
-      font-family: 'DM Sans', sans-serif;
-      font-size: 13px;
-      color: var(--muted);
-    }
+    .dish-price { font-family: 'Playfair Display', serif; font-size: 26px;
+      color: var(--gold-lt); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+    .dish-price .sym { font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--muted); }
 
-    /* ── CARET ── */
-    .caret-row {
-      display: flex; justify-content: center;
-      padding: 4px 0 6px;
-      pointer-events: none;
+    /* AR BUTTON — gold pill, exactly like screenshot */
+    .ar-btn-wrap {
+      padding: 0 16px 10px;
+      background: rgba(0,0,0,0.42);
     }
-    .caret {
-      width: 0; height: 0;
-      border-left: 9px solid transparent;
-      border-right: 9px solid transparent;
-      border-top: 11px solid var(--gold);
-      filter: drop-shadow(0 2px 6px rgba(201,168,76,0.7));
+    .ar-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 15px 0; background: var(--gold); color: #0a0a0a;
+      font-family: 'Cinzel', serif; font-size: 12.5px; letter-spacing: 3px;
+      font-weight: 600; border: none; border-radius: 10px; cursor: pointer;
+      box-shadow: 0 4px 18px rgba(201,168,76,0.5);
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 0.13s, opacity 0.13s;
     }
+    .ar-btn:active { transform: scale(0.97); opacity: 0.88; }
+    .ar-btn:disabled { background: rgba(201,168,76,0.28); color: rgba(201,168,76,0.45);
+      box-shadow: none; cursor: default; }
+    .ar-unsupported { display: none; text-align: center; font-size: 10px; letter-spacing: 2px;
+      color: rgba(201,168,76,0.4); font-family: 'Cinzel', serif; padding: 10px 0 6px; }
 
-    /* ── THUMBNAIL STRIP ── */
-    .thumb-strip-wrap {
-      pointer-events: auto;
-      padding-bottom: max(env(safe-area-inset-bottom), 16px);
-    }
-    .thumb-strip {
-      display: flex;
-      gap: 16px;
-      overflow-x: auto;
-      padding: 6px 24px 4px;
-      scrollbar-width: none;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-    }
+    /* CARET */
+    .caret-row { display: flex; justify-content: center; padding: 4px 0 5px;
+      background: rgba(0,0,0,0.35); }
+    .caret { width: 0; height: 0; border-left: 9px solid transparent;
+      border-right: 9px solid transparent; border-top: 11px solid var(--gold);
+      filter: drop-shadow(0 2px 5px rgba(201,168,76,0.6)); }
+
+    /* THUMBNAIL STRIP */
+    .thumb-wrap { pointer-events: auto; background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      padding-bottom: max(env(safe-area-inset-bottom), 14px); }
+    .thumb-strip { display: flex; gap: 14px; overflow-x: auto; padding: 10px 20px 6px;
+      scrollbar-width: none; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
     .thumb-strip::-webkit-scrollbar { display: none; }
-
-    .thumb-item {
-      flex-shrink: 0;
-      scroll-snap-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-    }
-    .thumb-ring {
-      width: 68px; height: 68px;
-      border-radius: 50%;
-      border: 2.5px solid rgba(201,168,76,0.2);
-      padding: 3px;
-      transition: border-color 0.2s, box-shadow 0.2s, transform 0.25s cubic-bezier(.34,1.56,.64,1);
-      position: relative;
-      background: rgba(0,0,0,0.35);
-      backdrop-filter: blur(4px);
-    }
-    .thumb-item.active .thumb-ring {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 3px rgba(201,168,76,0.2), 0 0 20px rgba(201,168,76,0.4);
-    }
-    .thumb-item:hover  .thumb-ring { transform: scale(1.08); }
-    .thumb-item:active .thumb-ring { transform: scale(0.93); }
-    .thumb-inner {
-      width: 100%; height: 100%;
-      border-radius: 50%;
-      overflow: hidden;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 24px;
-    }
-    .thumb-inner img {
-      width: 100%; height: 100%;
-      object-fit: cover; display: block;
-    }
-    .thumb-item.active .thumb-ring::after {
-      content: '';
-      position: absolute;
-      bottom: -8px; left: 50%;
-      transform: translateX(-50%);
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--gold);
-      box-shadow: 0 0 8px rgba(201,168,76,0.9);
-    }
-    .thumb-label {
-      font-size: 10px;
-      color: rgba(232,221,208,0.55);
-      text-align: center;
-      max-width: 68px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      transition: color 0.2s;
-    }
+    .thumb-item { flex-shrink: 0; scroll-snap-align: center; display: flex;
+      flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+    .thumb-ring { width: 70px; height: 70px; border-radius: 50%;
+      border: 2.5px solid rgba(201,168,76,0.18); padding: 3px;
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.22s cubic-bezier(.34,1.56,.64,1);
+      position: relative; background: rgba(0,0,0,0.42); }
+    .thumb-item.active .thumb-ring { border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(201,168,76,0.22), 0 0 18px rgba(201,168,76,0.45); }
+    .thumb-item:active .thumb-ring { transform: scale(0.92); }
+    .thumb-inner { width: 100%; height: 100%; border-radius: 50%; overflow: hidden;
+      display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .thumb-inner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumb-item.active .thumb-ring::after { content: ''; position: absolute;
+      bottom: -9px; left: 50%; transform: translateX(-50%);
+      width: 6px; height: 6px; border-radius: 50%; background: var(--gold);
+      box-shadow: 0 0 8px rgba(201,168,76,0.9); }
+    .thumb-label { font-size: 9.5px; color: rgba(232,221,208,0.5); text-align: center;
+      max-width: 70px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      transition: color 0.2s; }
     .thumb-item.active .thumb-label { color: var(--gold-lt); font-weight: 500; }
 
-    /* ── LOADING OVERLAY ── */
-    .loading-overlay {
-      position: fixed; inset: 0;
-      background: #000;
+    /* LOADING */
+    .loading-overlay { position: fixed; inset: 0; background: #000;
       display: flex; align-items: center; justify-content: center;
-      flex-direction: column; gap: 14px;
-      z-index: 9999;
-      transition: opacity 0.5s;
-    }
+      flex-direction: column; gap: 14px; z-index: 9999; transition: opacity 0.5s; }
     .loading-overlay.hidden { opacity: 0; pointer-events: none; }
-    .load-ring {
-      width: 40px; height: 40px;
-      border: 2px solid rgba(201,168,76,0.12);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 0.85s linear infinite;
-    }
+    .load-ring { width: 38px; height: 38px; border: 2px solid rgba(201,168,76,0.12);
+      border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .load-text {
-      font-family: 'Cinzel', serif;
-      font-size: 11px; letter-spacing: 4px;
-      color: var(--muted);
-    }
+    .load-text { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 4px; color: var(--muted); }
 
-    /* ── MODEL LOADING INDICATOR (in the 3D area) ── */
-    .model-loading-badge {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-      pointer-events: none;
-      z-index: 5;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .model-loading-badge.show { opacity: 1; }
-    .mlb-ring {
-      width: 36px; height: 36px;
-      border: 2px solid rgba(201,168,76,0.15);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 0.85s linear infinite;
-    }
-    .mlb-text {
-      font-family: 'Cinzel', serif;
-      font-size: 9px; letter-spacing: 3px;
-      color: rgba(201,168,76,0.6);
-    }
+    /* CAMERA PERMISSION */
+    .cam-card { position: fixed; inset: 0; background: rgba(0,0,0,0.93);
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 32px; text-align: center; z-index: 9998; }
+    .cam-card.show { display: flex; }
+    .cam-card-icon { font-size: 48px; }
+    .cam-card-title { font-family: 'Cinzel', serif; font-size: 14px; letter-spacing: 3px; color: var(--gold); }
+    .cam-card-sub { font-size: 12.5px; color: var(--muted); line-height: 1.7; max-width: 270px; }
+    .cam-card-btn { margin-top: 6px; padding: 12px 32px; background: var(--gold); color: #000;
+      font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 2px;
+      border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
-    /* ── AR STATUS TOAST ── */
-    .ar-toast {
-      position: fixed;
-      top: 90px; left: 50%;
-      transform: translateX(-50%) translateY(-6px);
-      background: rgba(10,10,10,0.9);
-      border: 1px solid rgba(201,168,76,0.3);
-      color: var(--muted);
-      font-family: 'Cinzel', serif;
-      font-size: 10px; letter-spacing: 2px;
-      padding: 9px 20px;
-      border-radius: 30px;
-      backdrop-filter: blur(8px);
-      opacity: 0;
-      transition: opacity 0.3s, transform 0.3s;
-      pointer-events: none;
-      z-index: 20;
-      white-space: nowrap;
-    }
-    .ar-toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
+    /* MODEL SPINNER */
+    .model-spinner { position: fixed; top: 42%; left: 50%; transform: translate(-50%,-50%);
+      z-index: 5; pointer-events: none; display: flex; flex-direction: column;
+      align-items: center; gap: 9px; opacity: 0; transition: opacity 0.3s; }
+    .model-spinner.show { opacity: 1; }
+    .ms-ring { width: 32px; height: 32px; border: 2px solid rgba(201,168,76,0.12);
+      border-top-color: var(--gold); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .ms-text { font-family: 'Cinzel', serif; font-size: 8.5px; letter-spacing: 3px;
+      color: rgba(201,168,76,0.55); }
+
+    /* TOAST */
+    .toast { position: fixed; top: 88px; left: 50%;
+      transform: translateX(-50%) translateY(-5px);
+      background: rgba(5,5,5,0.88); border: 1px solid rgba(201,168,76,0.28);
+      color: rgba(232,221,208,0.75); font-family: 'Cinzel', serif;
+      font-size: 9.5px; letter-spacing: 2px; padding: 9px 20px; border-radius: 30px;
+      backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none; z-index: 20; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════
-  model-viewer: 3D preview in the menu.
-  When user taps "VIEW IN AR", we call
-  mv.activateAR() — the browser/OS takes
-  over with real WebXR / ARKit / ARCore.
-  No fake camera. No overlay tricks.
-══════════════════════════════════════ -->
-<div id="preview-layer">
-  <model-viewer
-    id="ar-model-viewer"
-    class="hidden"
-    camera-controls
-    touch-action="pan-y"
-    shadow-intensity="1.2"
-    shadow-softness="0.9"
-    environment-image="neutral"
-    exposure="1.1"
-    camera-orbit="25deg 70deg 1.6m"
-    min-camera-orbit="auto auto 0.4m"
+<!-- LAYER 1: LIVE CAMERA — real table/surface visible as background -->
+<div id="camera-bg"><video id="cam-video" autoplay playsinline muted></video></div>
+
+<!-- LAYER 2: model-viewer — transparent bg, 3D dish appears on real table -->
+<div id="mv-layer">
+  <model-viewer id="mv" class="hidden"
+    camera-controls touch-action="pan-y"
+    shadow-intensity="1.4" shadow-softness="0.85"
+    environment-image="neutral" exposure="1.15"
+    camera-orbit="0deg 60deg 1.6m"
+    min-camera-orbit="auto auto 0.5m"
     max-camera-orbit="auto auto 5m"
     interaction-prompt="none"
-    auto-rotate
-    auto-rotate-delay="2000"
-    rotation-per-second="12deg"
-    ar
-    ar-modes="webxr scene-viewer quick-look"
-    ar-placement="floor"
-    ar-scale="fixed"
-  ></model-viewer>
+    ar ar-modes="webxr scene-viewer quick-look"
+    ar-placement="floor" ar-scale="fixed">
+  </model-viewer>
 </div>
 
-<!-- UI OVERLAY -->
-<div id="ui-overlay">
-
+<!-- LAYER 3: UI CONTROLS -->
+<div id="ui">
   <div class="top-bar">
-    <div class="back-btn">←</div>
+    <button class="back-btn">&#8592;</button>
     <div class="top-title">PINOCCHIO</div>
-    <div class="cart-btn">
-      🛒
-      <div class="cart-badge">1</div>
-    </div>
+    <div class="cart-btn">&#128722;<div class="cart-badge">1</div></div>
   </div>
-
   <div class="cat-tabs" id="cat-tabs"></div>
-
-  <div class="stage-spacer"></div>
-
-  <div class="dish-panel">
-
-    <!--
-      THE REAL AR BUTTON.
-      Calls mv.activateAR() which:
-        • Android Chrome/WebXR: opens WebXR session,
-          uses real camera + surface detection via ARCore.
-        • Android fallback: launches Scene Viewer (native Google AR).
-        • iOS Safari: opens AR Quick Look (ARKit, fullscreen native).
-      In all cases: the dish 3D model appears sitting on
-      your real table/floor. No fake overlay.
-    -->
-    <button class="ar-launch-btn" id="ar-btn" disabled>
-      <span class="ar-icon">⬡</span>
-      VIEW IN AR — PLACE ON TABLE
-    </button>
-    <div class="ar-unsupported" id="ar-unsupported">
-      AR NOT SUPPORTED ON THIS DEVICE
+  <div class="stage"></div>
+  <div class="bottom-panel">
+    <div class="dish-info">
+      <div class="dish-name" id="info-name"></div>
+      <div class="dish-desc" id="info-desc"></div>
+      <div class="dish-row">
+        <div class="dish-tags" id="info-tags"></div>
+        <div class="dish-price" id="info-price"></div>
+      </div>
     </div>
-
-    <div class="dish-info-name" id="info-name"></div>
-    <div class="dish-info-desc" id="info-desc"></div>
-    <div class="dish-info-row">
-      <div class="dish-info-tags" id="info-tags"></div>
-      <div class="dish-info-price" id="info-price"></div>
+    <div class="ar-btn-wrap">
+      <!-- Tapping this calls mv.activateAR() — real WebXR/QuickLook/SceneViewer -->
+      <button class="ar-btn" id="ar-btn" disabled>
+        <span>&#x2B21;</span> VIEW IN AR &#8212; PLACE ON TABLE
+      </button>
+      <div class="ar-unsupported" id="ar-unsupported">AR NOT SUPPORTED ON THIS DEVICE / BROWSER</div>
     </div>
-
   </div>
-
   <div class="caret-row"><div class="caret"></div></div>
-
-  <div class="thumb-strip-wrap">
+  <div class="thumb-wrap">
     <div class="thumb-strip" id="thumb-strip"></div>
   </div>
-
 </div>
 
-<!-- Model loading spinner (centre of 3D area) -->
-<div class="model-loading-badge" id="mlb">
-  <div class="mlb-ring"></div>
-  <div class="mlb-text">LOADING MODEL</div>
+<div class="model-spinner" id="model-spinner">
+  <div class="ms-ring"></div><div class="ms-text">LOADING MODEL</div>
 </div>
-
-<!-- AR feedback toast -->
-<div class="ar-toast" id="ar-toast"></div>
-
-<!-- App loading -->
+<div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loading">
-  <div class="load-ring"></div>
-  <p class="load-text">LOADING MENU</p>
+  <div class="load-ring"></div><p class="load-text">LOADING MENU</p>
+</div>
+<div class="cam-card" id="cam-card">
+  <div class="cam-card-icon">&#128247;</div>
+  <div class="cam-card-title">CAMERA ACCESS</div>
+  <div class="cam-card-sub">PINOCCHIO uses your camera so the 3D dish appears on your real table.</div>
+  <button class="cam-card-btn" id="cam-card-btn">ALLOW CAMERA</button>
 </div>
 
 <script>
-/* ══════════════════════════════════════
-   CONFIG
-══════════════════════════════════════ */
 const ASSETS_BASE = '3d-model';
-
 const LOCAL_ASSETS = {
   'pistachio-sauce-bigne-with-ricotta': { folder:'Pistachio-Sauce-Bigne-with-Ricotta', file:'Pistachio-Sauce-Bigne-with-Ricotta', scale:0.25 },
   'pinocchio-tiramisu':                 { folder:'Pinocchio-Tiramisu',                 file:'Pinocchio-Tiramisu',                 scale:0.25 },
@@ -546,49 +290,33 @@ const LOCAL_ASSETS = {
   'fried-calamari':                     { folder:'Fried-Calamari',                     file:'Fried-Calamari',                     scale:0.25 },
 };
 const EMOJI_MAP = {
-  'pistachio-sauce-bigne-with-ricotta':'🍮',
-  'pinocchio-tiramisu':'🍰',
-  'cheesy-green-lasagne':'🧀',
-  'fried-calamari':'🦑',
+  'pistachio-sauce-bigne-with-ricotta':'🍮','pinocchio-tiramisu':'🍰',
+  'cheesy-green-lasagne':'🧀','fried-calamari':'🦑',
 };
 const CAT_LABELS = { all:'All', starter:'Starters', 'main-course':'Mains', dessert:'Desserts' };
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTEkmIGoRgD1rQNmDgmY3lvB7WBOg86iOHHrS0MJ6qQiReuDHsUyX3YV7KoWXxTbefyBUWPTHpvUOt3/pub?output=csv';
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+              (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 
-/* ══════════════════════════════════════
-   STATE
-══════════════════════════════════════ */
-let allDishes = [], filteredDishes = [];
-let activeCategory = 'all';
-let activeDishIdx = 0;
-let arAvailable = false;
-let currentModelLoaded = false;
+let allDishes=[], filteredDishes=[], activeCategory='all', activeDishIdx=0, modelReady=false;
+const mv=document.getElementById('mv');
+const arBtn=document.getElementById('ar-btn');
+const spinner=document.getElementById('model-spinner');
+const toast=document.getElementById('toast');
 
-const mv       = document.getElementById('ar-model-viewer');
-const arBtn    = document.getElementById('ar-btn');
-const arToast  = document.getElementById('ar-toast');
-const mlb      = document.getElementById('mlb');
-
-/* ══════════════════════════════════════
-   HELPERS
-══════════════════════════════════════ */
 function norm(s){ return (s||'').toLowerCase().replace(/\s+/g,'-').trim(); }
-
 function getAssets(name){
-  const k = norm(name), e = LOCAL_ASSETS[k];
-  if(!e) return {poster:'',glb:'',usdz:'',scale:0.1};
-  const b = `${ASSETS_BASE}/${e.folder}/${e.file}`;
-  return { poster:`${b}.png`, glb:`${b}.glb`, usdz:`${b}.usdz`, scale:e.scale };
+  const k=norm(name),e=LOCAL_ASSETS[k];
+  if(!e) return{poster:'',glb:'',usdz:'',scale:0.1};
+  const b=`${ASSETS_BASE}/${e.folder}/${e.file}`;
+  return{poster:`${b}.png`,glb:`${b}.glb`,usdz:`${b}.usdz`,scale:e.scale};
 }
-
 function parseCSV(text){
-  const lines = text.trim().split('\n');
-  if(lines.length < 2) return [];
-  const headers = splitLine(lines[0]).map(h => h.trim().toLowerCase());
-  return lines.slice(1).map(line => {
-    const vals = splitLine(line), obj = {};
-    headers.forEach((h,i) => { obj[h] = (vals[i]||'').trim(); });
-    return obj;
-  });
+  const lines=text.trim().split('\n');
+  if(lines.length<2)return[];
+  const headers=splitLine(lines[0]).map(h=>h.trim().toLowerCase());
+  return lines.slice(1).map(line=>{const vals=splitLine(line),obj={};
+    headers.forEach((h,i)=>{obj[h]=(vals[i]||'').trim();});return obj;});
 }
 function splitLine(line){
   const res=[];let cur='',inQ=false;
@@ -597,291 +325,165 @@ function splitLine(line){
     if(ch==='"'&&!inQ){inQ=true;continue;}
     if(ch==='"'&&inQ){if(line[i+1]==='"'){cur+='"';i++;}else{inQ=false;}continue;}
     if(ch===','&&!inQ){res.push(cur);cur='';continue;}
-    cur+=ch;
-  }
-  res.push(cur); return res;
+    cur+=ch;}res.push(cur);return res;
 }
-function truthy(v){ return ['true','yes','1'].includes((v||'').toLowerCase()); }
-
+function truthy(v){return['true','yes','1'].includes((v||'').toLowerCase());}
 function rowToDish(row){
-  const a = getAssets(row['name']);
-  return {
-    id:row['id']||'', name:row['name']||'',
+  const a=getAssets(row['name']);
+  return{id:row['id']||'',name:row['name']||'',
     category:(row['category']||'other').toLowerCase(),
-    desc:row['description']||'',
-    price:parseInt(row['price']||'0',10),
-    veg:truthy(row['veg']), available:truthy(row['available']),
-    ...a, emoji:EMOJI_MAP[norm(row['name'])]||'🍽️',
-  };
+    desc:row['description']||'',price:parseInt(row['price']||'0',10),
+    veg:truthy(row['veg']),available:truthy(row['available']),
+    ...a,emoji:EMOJI_MAP[norm(row['name'])]||'🍽️'};
 }
 
-/* ══════════════════════════════════════
-   TOAST
-══════════════════════════════════════ */
-let _toastT;
-function showToast(msg, dur=2800){
-  clearTimeout(_toastT);
-  arToast.textContent = msg;
-  arToast.classList.add('show');
-  _toastT = setTimeout(() => arToast.classList.remove('show'), dur);
+let _tt;
+function showToast(msg,dur=2600){
+  clearTimeout(_tt);toast.textContent=msg;toast.classList.add('show');
+  _tt=setTimeout(()=>toast.classList.remove('show'),dur);
 }
 
-/* ══════════════════════════════════════
-   AR AVAILABILITY CHECK
-
-  model-viewer emits 'ar-status' with
-  status='not-presenting' when AR is
-  unavailable on the device/browser.
-  We also check mv.canActivateAR.
-══════════════════════════════════════ */
-function checkARSupport(){
-  // canActivateAR is set after model-viewer initialises
-  arAvailable = !!mv.canActivateAR;
-  if(!arAvailable){
-    arBtn.style.display = 'none';
-    document.getElementById('ar-unsupported').style.display = 'block';
+/* CAMERA — streams back camera to <video> element.
+   model-viewer renders on top with transparent bg
+   so the real table is visible beneath the 3D dish. */
+async function startCamera(){
+  const video=document.getElementById('cam-video');
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    video.srcObject=stream;await video.play();
+  }catch(err){
+    console.warn('Camera:',err.name);
+    document.getElementById('camera-bg').style.background=
+      'radial-gradient(ellipse at 50% 40%,#1a2e22,#050d07)';
+    if(err.name==='NotAllowedError')
+      document.getElementById('cam-card').classList.add('show');
   }
 }
-
-/* ══════════════════════════════════════
-   THE AR BUTTON — calls activateAR()
-
-  This is the ONLY correct approach:
-  mv.activateAR() hands off to:
-    • WebXR  (Chrome Android, ARCore)    → real camera + plane detection
-    • Scene Viewer  (Android fallback)   → native AR app
-    • Quick Look    (iOS Safari/Chrome)  → ARKit fullscreen
-  The dish 3D model is placed on the
-  detected real-world floor/table.
-══════════════════════════════════════ */
-arBtn.addEventListener('click', async () => {
-  if(!currentModelLoaded){
-    showToast('MODEL STILL LOADING…');
-    return;
-  }
-  if(!mv.canActivateAR){
-    showToast('AR NOT AVAILABLE ON THIS DEVICE');
-    return;
-  }
-  try {
-    await mv.activateAR();
-    // The OS/browser takes over from here.
-    // On Android WebXR: shows real camera + places dish on surface.
-    // On iOS: Quick Look opens fullscreen with ARKit.
-  } catch(err){
-    console.warn('AR activation error:', err);
-    showToast('COULD NOT START AR SESSION');
-  }
+document.getElementById('cam-card-btn').addEventListener('click',async()=>{
+  document.getElementById('cam-card').classList.remove('show');
+  await startCamera();
 });
 
-/* ══════════════════════════════════════
-   model-viewer EVENT LISTENERS
-══════════════════════════════════════ */
-
-// Model finished loading → enable AR button
-mv.addEventListener('load', () => {
-  currentModelLoaded = true;
-  mlb.classList.remove('show');
-  mv.classList.remove('hidden');
-  // Re-check AR support now that a model is loaded
-  arAvailable = !!mv.canActivateAR;
-  if(arAvailable){
-    arBtn.disabled = false;
-    arBtn.querySelector('.ar-icon').textContent = '⬡';
-  }
+/* AR BUTTON — mv.activateAR() is the real AR.
+   Android Chrome: WebXR session with ARCore plane detection.
+   Android fallback: Scene Viewer (native Google AR).
+   iOS Safari: Quick Look (ARKit, fullscreen native).
+   Our camera preview above is just a live preview;
+   activateAR() launches the proper AR experience. */
+function updateARBtn(){
+  const ok=!!mv.canActivateAR;
+  arBtn.style.display=ok?'':'none';
+  document.getElementById('ar-unsupported').style.display=ok?'none':'block';
+  if(ok)arBtn.disabled=!modelReady;
+}
+arBtn.addEventListener('click',async()=>{
+  if(!modelReady){showToast('MODEL STILL LOADING…');return;}
+  if(!mv.canActivateAR){showToast('AR NOT AVAILABLE ON THIS DEVICE');return;}
+  try{await mv.activateAR();}
+  catch(e){showToast('COULD NOT START AR SESSION');console.warn(e);}
 });
 
-// Model loading started
-mv.addEventListener('model-visibility', () => {});
-
-// Error loading model
-mv.addEventListener('error', () => {
-  currentModelLoaded = false;
-  mlb.classList.remove('show');
-  arBtn.disabled = true;
+mv.addEventListener('load',()=>{
+  modelReady=true;spinner.classList.remove('show');
+  mv.classList.remove('hidden');updateARBtn();
+});
+mv.addEventListener('error',()=>{
+  modelReady=false;spinner.classList.remove('show');
+  mv.classList.add('hidden');arBtn.disabled=true;
   showToast('COULD NOT LOAD 3D MODEL');
 });
-
-// AR session status callbacks
-mv.addEventListener('ar-status', e => {
-  const s = e.detail.status;
-  if(s === 'session-started'){
-    // User is now in AR — UI is in background; WebXR session is live
-    console.log('AR session started');
-  }
-  if(s === 'object-placed'){
-    // Dish has been placed on a detected surface
-    showToast('DISH PLACED ON SURFACE ✓');
-  }
-  if(s === 'failed'){
-    showToast('AR UNAVAILABLE — OPEN IN CHROME ON ANDROID OR SAFARI ON iOS');
-  }
-  if(s === 'not-presenting'){
-    // AR ended / device does not support it
-    checkARSupport();
-  }
+mv.addEventListener('ar-status',e=>{
+  const s=e.detail.status;
+  if(s==='object-placed')showToast('DISH PLACED ✓');
+  if(s==='failed')showToast('AR UNAVAILABLE — USE CHROME (ANDROID) OR SAFARI (iOS)');
+  if(s==='not-presenting')updateARBtn();
 });
 
-// Fires when user exits AR back to the page
-mv.addEventListener('ar-tracking', e => {
-  // e.detail.status: 'tracking' | 'not-tracking'
-});
-
-/* ══════════════════════════════════════
-   LOAD MODEL INTO VIEWER
-══════════════════════════════════════ */
 function loadModel(dish){
-  currentModelLoaded = false;
-  arBtn.disabled = true;
-
-  if(!dish.glb){
-    mv.classList.add('hidden');
-    mlb.classList.remove('show');
-    arBtn.disabled = true;
-    showToast('NO 3D MODEL FOR THIS DISH');
-    return;
-  }
-
-  mv.classList.remove('hidden');
-  mlb.classList.add('show');
-
-  // Scale
-  const s = (dish.scale ?? 0.1).toFixed(6);
-  mv.setAttribute('scale', `${s} ${s} ${s}`);
-
-  // iOS USDZ for Quick Look
-  if(/iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-     (navigator.platform==='MacIntel' && navigator.maxTouchPoints > 1)){
-    if(dish.usdz) mv.setAttribute('ios-src', dish.usdz);
-    else          mv.removeAttribute('ios-src');
-  }
-
-  // Poster (low-res preview while GLB loads)
-  if(dish.poster) mv.setAttribute('poster', dish.poster);
-  else            mv.removeAttribute('poster');
-
-  // Setting src triggers model load
-  mv.setAttribute('src', dish.glb);
+  modelReady=false;arBtn.disabled=true;
+  if(!dish.glb){mv.classList.add('hidden');spinner.classList.remove('show');
+    showToast('NO 3D MODEL FOR THIS DISH');return;}
+  mv.classList.add('hidden');spinner.classList.add('show');
+  const s=(dish.scale??0.1).toFixed(6);
+  mv.setAttribute('scale',`${s} ${s} ${s}`);
+  if(isIOS&&dish.usdz)mv.setAttribute('ios-src',dish.usdz);
+  else mv.removeAttribute('ios-src');
+  if(dish.poster)mv.setAttribute('poster',dish.poster);
+  else mv.removeAttribute('poster');
+  mv.setAttribute('src',dish.glb);
 }
 
-/* ══════════════════════════════════════
-   RENDER UI
-══════════════════════════════════════ */
 function getFiltered(){
-  return activeCategory === 'all'
-    ? allDishes
-    : allDishes.filter(d => d.category === activeCategory);
+  return activeCategory==='all'?allDishes:allDishes.filter(d=>d.category===activeCategory);
 }
-function getCategories(){
-  return ['all', ...new Set(allDishes.map(d => d.category))];
-}
+function getCategories(){return['all',...new Set(allDishes.map(d=>d.category))];}
 
 function renderCatTabs(){
-  const wrap = document.getElementById('cat-tabs');
-  wrap.innerHTML = getCategories().map(c =>
-    `<button class="cat-tab${c===activeCategory?' active':''}" data-cat="${c}">
-       ${CAT_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))}
-     </button>`
+  const wrap=document.getElementById('cat-tabs');
+  wrap.innerHTML=getCategories().map(c=>
+    `<button class="cat-tab${c===activeCategory?' active':''}" data-cat="${c}">${CAT_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))}</button>`
   ).join('');
-  wrap.querySelectorAll('.cat-tab').forEach(btn =>
-    btn.addEventListener('click', () => {
-      activeCategory = btn.dataset.cat;
-      activeDishIdx = 0;
-      renderCatTabs();
-      renderThumbStrip();
-      selectDish(0);
-    })
-  );
+  wrap.querySelectorAll('.cat-tab').forEach(btn=>btn.addEventListener('click',()=>{
+    activeCategory=btn.dataset.cat;activeDishIdx=0;
+    renderCatTabs();renderThumbStrip();selectDish(0);
+  }));
 }
 
 function renderThumbStrip(){
-  filteredDishes = getFiltered();
-  const strip = document.getElementById('thumb-strip');
-  strip.innerHTML = filteredDishes.map((d,i) => {
-    const inner = d.poster
-      ? `<img src="${d.poster}" alt="${d.name}"
-            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-         <span style="display:none;font-size:22px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
-      : `<span style="font-size:22px;">${d.emoji}</span>`;
-    return `
-      <div class="thumb-item${i===activeDishIdx?' active':''}" data-idx="${i}">
-        <div class="thumb-ring"><div class="thumb-inner">${inner}</div></div>
-        <div class="thumb-label">${d.name.split(' ').slice(0,2).join(' ')}</div>
-      </div>`;
+  filteredDishes=getFiltered();
+  const strip=document.getElementById('thumb-strip');
+  strip.innerHTML=filteredDishes.map((d,i)=>{
+    const inner=d.poster
+      ?`<img src="${d.poster}" alt="${d.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><span style="display:none;font-size:22px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
+      :`<span style="font-size:22px;">${d.emoji}</span>`;
+    return`<div class="thumb-item${i===activeDishIdx?' active':''}" data-idx="${i}">
+      <div class="thumb-ring"><div class="thumb-inner">${inner}</div></div>
+      <div class="thumb-label">${d.name.split(' ').slice(0,2).join(' ')}</div></div>`;
   }).join('');
-  strip.querySelectorAll('.thumb-item').forEach(item =>
-    item.addEventListener('click', () => {
-      activeDishIdx = parseInt(item.dataset.idx);
-      updateThumbActive();
-      selectDish(activeDishIdx);
-    })
-  );
+  strip.querySelectorAll('.thumb-item').forEach(item=>item.addEventListener('click',()=>{
+    activeDishIdx=parseInt(item.dataset.idx);updateThumbActive();selectDish(activeDishIdx);
+  }));
   scrollThumbToActive();
 }
 
 function updateThumbActive(){
-  document.querySelectorAll('.thumb-item').forEach((el,i) =>
-    el.classList.toggle('active', i===activeDishIdx)
-  );
+  document.querySelectorAll('.thumb-item').forEach((el,i)=>el.classList.toggle('active',i===activeDishIdx));
   scrollThumbToActive();
 }
 function scrollThumbToActive(){
-  const el = document.querySelectorAll('.thumb-item')[activeDishIdx];
-  if(el) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  const el=document.querySelectorAll('.thumb-item')[activeDishIdx];
+  if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
 }
 
-/* ══════════════════════════════════════
-   SELECT DISH
-══════════════════════════════════════ */
 function selectDish(idx){
-  filteredDishes = getFiltered();
-  const d = filteredDishes[idx];
-  if(!d) return;
-
-  document.getElementById('info-name').textContent = d.name;
-  document.getElementById('info-desc').textContent = d.desc;
-  document.getElementById('info-price').innerHTML =
-    `<span class="sym">₹</span>${d.price.toLocaleString('en-IN')}`;
-  document.getElementById('info-tags').innerHTML =
-    d.veg ? '<span class="tag tag-veg">🌿 Vegetarian</span>' : '';
-
+  filteredDishes=getFiltered();const d=filteredDishes[idx];if(!d)return;
+  document.getElementById('info-name').textContent=d.name;
+  document.getElementById('info-desc').textContent=d.desc;
+  document.getElementById('info-price').innerHTML=`<span class="sym">&#8377;</span>${d.price.toLocaleString('en-IN')}`;
+  document.getElementById('info-tags').innerHTML=d.veg?'<span class="tag-veg">🌿 Vegetarian</span>':'';
   loadModel(d);
 }
 
-/* ══════════════════════════════════════
-   INIT
-══════════════════════════════════════ */
 async function init(){
-  const loadEl = document.getElementById('loading');
-  try {
-    const res = await fetch(CSV_URL);
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-    allDishes = parseCSV(text).map(rowToDish).filter(d => d.name && d.available);
-    if(!allDishes.length) throw new Error('No dishes');
-
+  const loadEl=document.getElementById('loading');
+  try{
+    startCamera(); // non-blocking
+    const res=await fetch(CSV_URL);
+    if(!res.ok)throw new Error(`HTTP ${res.status}`);
+    const text=await res.text();
+    allDishes=parseCSV(text).map(rowToDish).filter(d=>d.name&&d.available);
+    if(!allDishes.length)throw new Error('No dishes');
     loadEl.classList.add('hidden');
-    setTimeout(() => { loadEl.style.display='none'; }, 500);
-
-    filteredDishes = getFiltered();
-    renderCatTabs();
-    renderThumbStrip();
-    selectDish(0);
-
-    // Check AR after first model load fires (canActivateAR needs a model)
-    setTimeout(checkARSupport, 1200);
-
-  } catch(err){
+    setTimeout(()=>{loadEl.style.display='none';},500);
+    filteredDishes=getFiltered();
+    renderCatTabs();renderThumbStrip();selectDish(0);
+    setTimeout(updateARBtn,1000);
+  }catch(err){
     console.error(err);
-    loadEl.innerHTML = `
-      <div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;">
-        <div style="font-size:36px;margin-bottom:14px">🍽️</div>
-        <div>Could not load menu</div>
-        <div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif">Check connection</div>
-      </div>`;
+    loadEl.innerHTML=`<div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;"><div style="font-size:36px;margin-bottom:14px">🍽️</div><div>Could not load menu</div><div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif">Check connection</div></div>`;
   }
 }
-
 init();
 </script>
 </body>
