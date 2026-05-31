@@ -2,46 +2,100 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>PINOCCHIO — AR Menu</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&family=Cinzel:wght@400;600&display=swap" rel="stylesheet" />
   <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:      #0a0a0a;
-      --bg2:     #111;
       --gold:    #c9a84c;
       --gold-lt: #e8c97a;
       --cream:   #f5ede0;
-      --text:    #e8ddd0;
-      --muted:   rgba(232,221,208,0.45);
+      --bg:      #0a0a0a;
       --green:   #1a2e22;
-      --green2:  #223828;
+      --muted:   rgba(232,221,208,0.5);
       --crimson: #b03a2e;
     }
 
     html, body {
       height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'DM Sans', sans-serif;
       overflow: hidden;
+      background: #000;
+      font-family: 'DM Sans', sans-serif;
+      color: var(--cream);
     }
 
-    /* ── APP SHELL ── */
-    .app {
+    /* ════════════════════════════════
+       CAMERA LAYER — full background
+    ════════════════════════════════ */
+    #camera-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: #000;
+      overflow: hidden;
+    }
+    #camera-video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    /* Subtle dark vignette so UI reads over camera */
+    #camera-layer::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 0%,   rgba(0,0,0,0.45) 0%, transparent 60%),
+        radial-gradient(ellipse at 50% 100%, rgba(0,0,0,0.7)  0%, transparent 55%);
+      pointer-events: none;
+    }
+
+    /* ════════════════════════════════
+       3D MODEL LAYER — on floor
+    ════════════════════════════════ */
+    #model-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* model-viewer fills the whole screen so the 3D dish
+       appears to sit on the real floor captured by camera */
+    #ar-model-viewer {
+      width: 100vw;
+      height: 100svh;
+      display: block;
+      background: transparent;
+      --progress-bar-color: var(--gold);
+      --progress-mask: transparent;
+      pointer-events: auto;
+    }
+
+    /* When no model is loaded yet, hide the viewer */
+    #ar-model-viewer.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* ════════════════════════════════
+       UI OVERLAY — on top of everything
+    ════════════════════════════════ */
+    #ui-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      pointer-events: none; /* children opt-in */
       display: flex;
       flex-direction: column;
-      height: 100svh;
-      max-width: 480px;
-      margin: 0 auto;
-      position: relative;
-      background: var(--bg);
     }
 
     /* ── TOP BAR ── */
@@ -50,25 +104,26 @@
       align-items: center;
       justify-content: space-between;
       padding: 14px 20px 10px;
-      flex-shrink: 0;
-      position: relative;
-      z-index: 20;
+      pointer-events: auto;
+      background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, transparent 100%);
     }
     .back-btn {
       width: 44px; height: 44px;
       border-radius: 50%;
-      border: 1.5px solid var(--green2);
-      background: var(--green);
+      border: 1.5px solid rgba(201,168,76,0.35);
+      background: rgba(26,46,34,0.75);
       color: var(--gold);
       font-size: 20px;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
+      backdrop-filter: blur(6px);
     }
     .top-title {
       font-family: 'Cinzel', serif;
       font-size: 16px;
       letter-spacing: 4px;
       color: var(--gold);
+      text-shadow: 0 1px 8px rgba(0,0,0,0.8);
     }
     .cart-btn {
       width: 44px; height: 44px;
@@ -88,30 +143,30 @@
       color: #fff;
       font-size: 9px; font-weight: 700;
       display: flex; align-items: center; justify-content: center;
-      font-family: 'DM Sans', sans-serif;
     }
 
     /* ── CATEGORY TABS ── */
     .cat-tabs {
       display: flex;
       gap: 8px;
-      padding: 4px 20px 12px;
+      padding: 4px 20px 10px;
       overflow-x: auto;
       scrollbar-width: none;
-      flex-shrink: 0;
+      pointer-events: auto;
     }
     .cat-tabs::-webkit-scrollbar { display: none; }
     .cat-tab {
       flex-shrink: 0;
-      padding: 8px 20px;
+      padding: 7px 18px;
       border-radius: 30px;
-      border: 1.5px solid rgba(201,168,76,0.2);
-      background: transparent;
+      border: 1.5px solid rgba(201,168,76,0.25);
+      background: rgba(0,0,0,0.45);
       color: var(--muted);
       font-family: 'DM Sans', sans-serif;
       font-size: 13px;
       cursor: pointer;
       transition: all 0.2s;
+      backdrop-filter: blur(4px);
     }
     .cat-tab.active {
       background: var(--gold);
@@ -124,139 +179,54 @@
       color: var(--gold-lt);
     }
 
-    /* ── MAIN DISH STAGE ── */
-    .dish-stage {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      min-height: 0;
-      padding: 0 20px 10px;
-    }
+    /* spacer — camera + 3D model visible in the middle */
+    .stage-spacer { flex: 1; }
 
-    /* Subtle radial glow */
-    .glow-bg {
-      position: absolute;
-      width: 380px; height: 380px;
-      border-radius: 50%;
-      background: radial-gradient(ellipse, rgba(201,168,76,0.06) 0%, transparent 65%);
-      pointer-events: none;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -55%);
-    }
-
-    /* ── MAIN DISH CIRCLE ── */
-    .main-circle-wrap {
-      position: relative;
-      flex-shrink: 0;
-    }
-
-    /* Outer decorative ring */
-    .main-circle-outer {
-      width: 290px; height: 290px;
-      border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.12);
-      display: flex; align-items: center; justify-content: center;
-      position: relative;
-    }
-
-    /* Inner dish image */
-    .main-circle {
-      width: 260px; height: 260px;
-      border-radius: 50%;
-      overflow: hidden;
-      position: relative;
-      cursor: pointer;
-      transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
-      box-shadow: 0 0 60px rgba(0,0,0,0.7), 0 0 0 6px rgba(201,168,76,0.08);
-    }
-    .main-circle:hover  { transform: scale(1.03); }
-    .main-circle:active { transform: scale(0.97); }
-
-    .main-circle img {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      display: block;
-      transition: opacity 0.3s;
-    }
-    .main-circle .emoji-fb {
-      position: absolute; inset: 0;
-      display: none;
-      align-items: center; justify-content: center;
-      font-size: 80px;
-    }
-
-    /* "VIEW" label overlay at bottom of circle */
-    .view-label {
-      position: absolute;
-      bottom: 12px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.65);
-      color: var(--gold-lt);
-      font-family: 'Cinzel', serif;
-      font-size: 10px;
-      letter-spacing: 3px;
-      padding: 5px 16px;
-      border-radius: 20px;
-      backdrop-filter: blur(4px);
-      border: 1px solid rgba(201,168,76,0.25);
-      white-space: nowrap;
-      z-index: 3;
-      pointer-events: none;
-    }
-
-    /* Fade cover for transition */
-    .fade-cover {
-      position: absolute; inset: 0;
-      background: rgba(10,10,10,0.85);
-      border-radius: 50%;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.15s;
-      z-index: 4;
-    }
-    .fade-cover.show { opacity: 1; }
-
-    /* ── DISH INFO ── */
-    .dish-info {
-      margin-top: 22px;
+    /* ── DISH INFO CARD ── */
+    .dish-info-card {
+      pointer-events: auto;
+      padding: 0 20px 12px;
       text-align: center;
-      position: relative;
-      z-index: 2;
-      width: 100%;
+      /* glass panel */
+      background: linear-gradient(0deg, rgba(0,0,0,0.7) 60%, transparent 100%);
     }
     .dish-info-name {
       font-family: 'Playfair Display', serif;
       font-size: clamp(20px, 5vw, 26px);
       font-weight: 700;
       color: var(--cream);
-      margin-bottom: 6px;
-      line-height: 1.2;
+      margin-bottom: 5px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.7);
     }
     .dish-info-desc {
-      font-size: 13px;
+      font-size: 12.5px;
       color: var(--muted);
-      line-height: 1.65;
+      line-height: 1.6;
       max-width: 300px;
-      margin: 0 auto 10px;
+      margin: 0 auto 8px;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.7);
     }
     .dish-info-tags {
-      display: flex; gap: 6px; justify-content: center; margin-bottom: 8px;
+      display: flex; gap: 6px;
+      justify-content: center;
+      margin-bottom: 8px;
     }
     .tag {
-      font-size: 11px; padding: 4px 12px;
+      font-size: 11px; padding: 3px 12px;
       border-radius: 20px; font-weight: 500;
     }
     .tag-veg {
-      background: rgba(74,140,65,0.18);
-      color: #7dcc6e;
-      border: 1px solid rgba(74,140,65,0.3);
+      background: rgba(74,140,65,0.25);
+      color: #8ddf7e;
+      border: 1px solid rgba(74,140,65,0.35);
+      backdrop-filter: blur(4px);
     }
     .dish-info-price {
       font-family: 'Playfair Display', serif;
       font-size: 26px;
       color: var(--gold-lt);
+      margin-bottom: 4px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
     }
     .dish-info-price .sym {
       font-family: 'DM Sans', sans-serif;
@@ -264,31 +234,69 @@
       color: var(--muted);
     }
 
+    /* ── AR STATUS INDICATOR ── */
+    .ar-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      min-height: 24px;
+    }
+    .ar-status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      animation: pulse 1.6s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    .ar-status-dot.loading {
+      background: #888;
+      animation: spin-dot 0.8s linear infinite;
+    }
+    .ar-status-dot.placed {
+      background: #5cdb5c;
+      animation: none;
+    }
+    @keyframes pulse {
+      0%,100%{ opacity:1; transform:scale(1); }
+      50%    { opacity:0.3; transform:scale(0.6); }
+    }
+    @keyframes spin-dot {
+      to { transform: rotate(360deg); }
+    }
+    .ar-status-text {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: rgba(232,221,208,0.7);
+      font-family: 'Cinzel', serif;
+      text-transform: uppercase;
+    }
+
     /* ── CARET ── */
     .caret-row {
       display: flex; justify-content: center;
-      padding: 8px 0 4px;
-      flex-shrink: 0;
+      padding: 4px 0 6px;
+      pointer-events: none;
     }
     .caret {
       width: 0; height: 0;
       border-left: 9px solid transparent;
       border-right: 9px solid transparent;
       border-top: 11px solid var(--gold);
-      filter: drop-shadow(0 2px 5px rgba(201,168,76,0.6));
+      filter: drop-shadow(0 2px 6px rgba(201,168,76,0.7));
     }
 
     /* ── THUMBNAIL STRIP ── */
     .thumb-strip-wrap {
-      flex-shrink: 0;
+      pointer-events: auto;
       padding-bottom: max(env(safe-area-inset-bottom), 18px);
-      background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
     }
     .thumb-strip {
       display: flex;
       gap: 16px;
       overflow-x: auto;
-      padding: 6px 24px 8px;
+      padding: 6px 24px 4px;
       scrollbar-width: none;
       scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
@@ -301,40 +309,39 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       cursor: pointer;
     }
 
     .thumb-ring {
       width: 68px; height: 68px;
       border-radius: 50%;
-      border: 2.5px solid rgba(201,168,76,0.15);
+      border: 2.5px solid rgba(201,168,76,0.2);
       padding: 3px;
       transition: border-color 0.2s, box-shadow 0.2s, transform 0.25s cubic-bezier(.34,1.56,.64,1);
       position: relative;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(4px);
     }
-    .thumb-item:hover  .thumb-ring { transform: scale(1.1); }
-    .thumb-item:active .thumb-ring { transform: scale(0.93); }
     .thumb-item.active .thumb-ring {
       border-color: var(--gold);
-      box-shadow: 0 0 0 3px rgba(201,168,76,0.2), 0 0 18px rgba(201,168,76,0.35);
+      box-shadow: 0 0 0 3px rgba(201,168,76,0.2), 0 0 20px rgba(201,168,76,0.4);
     }
+    .thumb-item:hover  .thumb-ring { transform: scale(1.08); }
+    .thumb-item:active .thumb-ring { transform: scale(0.93); }
 
     .thumb-inner {
       width: 100%; height: 100%;
       border-radius: 50%;
       overflow: hidden;
-      background: var(--green);
       display: flex; align-items: center; justify-content: center;
-      font-size: 26px;
+      font-size: 24px;
     }
     .thumb-inner img {
       width: 100%; height: 100%;
       object-fit: cover; display: block;
-      border-radius: 50%;
     }
 
-    /* Active dot below ring */
     .thumb-item.active .thumb-ring::after {
       content: '';
       position: absolute;
@@ -343,110 +350,30 @@
       width: 6px; height: 6px;
       border-radius: 50%;
       background: var(--gold);
-      box-shadow: 0 0 8px rgba(201,168,76,0.8);
+      box-shadow: 0 0 8px rgba(201,168,76,0.9);
     }
 
     .thumb-label {
       font-size: 10px;
-      color: var(--muted);
+      color: rgba(232,221,208,0.55);
       text-align: center;
       max-width: 68px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       transition: color 0.2s;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
     }
-    .thumb-item.active .thumb-label {
-      color: var(--gold-lt);
-      font-weight: 500;
-    }
-
-    /* ── HIDDEN model-viewer for AR ── */
-    /* We keep a hidden model-viewer at all times; clicking a dish icon
-       loads the model and immediately calls activateAR() */
-    #ar-mv-container {
-      position: fixed;
-      /* Off-screen but still rendered so model-viewer can load */
-      left: -9999px; top: -9999px;
-      width: 1px; height: 1px;
-      overflow: hidden;
-      pointer-events: none;
-      z-index: -1;
-    }
-    #ar-mv-container model-viewer {
-      width: 1px; height: 1px;
-      display: block;
-    }
-
-    /* ── AR LAUNCHING TOAST ── */
-    .ar-toast {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%) scale(0.85);
-      background: rgba(10,10,10,0.92);
-      border: 1px solid rgba(201,168,76,0.3);
-      border-radius: 16px;
-      padding: 28px 36px;
-      text-align: center;
-      z-index: 9999;
-      backdrop-filter: blur(12px);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s, transform 0.2s;
-    }
-    .ar-toast.show {
-      opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
-      pointer-events: auto;
-    }
-    .ar-toast-icon {
-      font-size: 42px;
-      display: block;
-      margin-bottom: 12px;
-    }
-    .ar-toast-title {
-      font-family: 'Cinzel', serif;
-      font-size: 13px;
-      letter-spacing: 2px;
-      color: var(--gold-lt);
-      margin-bottom: 6px;
-    }
-    .ar-toast-sub {
-      font-size: 12px;
-      color: var(--muted);
-      margin-bottom: 18px;
-      line-height: 1.5;
-    }
-    .ar-toast-spinner {
-      width: 32px; height: 32px;
-      border: 2px solid rgba(201,168,76,0.15);
-      border-top-color: var(--gold);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 14px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .ar-toast-cancel {
-      background: none;
-      border: 1px solid rgba(201,168,76,0.25);
-      color: var(--muted);
-      font-family: 'DM Sans', sans-serif;
-      font-size: 12px;
-      padding: 8px 20px;
-      border-radius: 20px;
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .ar-toast-cancel:hover { border-color: var(--gold); color: var(--gold-lt); }
+    .thumb-item.active .thumb-label { color: var(--gold-lt); font-weight: 500; }
 
     /* ── LOADING OVERLAY ── */
     .loading-overlay {
       position: fixed; inset: 0;
-      background: var(--bg);
+      background: #000;
       display: flex; align-items: center; justify-content: center;
       flex-direction: column; gap: 14px;
-      z-index: 10000;
-      transition: opacity 0.4s;
+      z-index: 9999;
+      transition: opacity 0.5s;
     }
     .loading-overlay.hidden { opacity: 0; pointer-events: none; }
     .load-ring {
@@ -456,113 +383,103 @@
       border-radius: 50%;
       animation: spin 0.85s linear infinite;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .load-text {
       font-family: 'Cinzel', serif;
       font-size: 11px; letter-spacing: 4px;
       color: var(--muted);
     }
 
-    /* ── NO-AR FALLBACK SHEET ── */
-    /* Shows dish info when device doesn't support AR */
-    .info-sheet {
-      display: none;
+    /* ── CAMERA PERMISSION SCREEN ── */
+    .cam-permission {
       position: fixed; inset: 0;
-      background: rgba(0,0,0,0.88);
-      z-index: 8000;
-      align-items: flex-end;
-      justify-content: center;
-      backdrop-filter: blur(3px);
-    }
-    .info-sheet.open { display: flex; }
-    .info-sheet-card {
-      background: #111;
-      border-top: 2px solid var(--gold);
-      width: 100%; max-width: 480px;
-      padding: 24px 24px 40px;
-      animation: slideUp 0.3s cubic-bezier(0.22,1,0.36,1);
-      position: relative;
-    }
-    @keyframes slideUp {
-      from { transform: translateY(50px); opacity: 0; }
-      to   { transform: none; opacity: 1; }
-    }
-    .info-sheet-close {
-      position: absolute; top: 16px; right: 16px;
-      width: 32px; height: 32px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(201,168,76,0.2);
-      color: var(--muted);
-      font-size: 14px;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-    }
-    .info-sheet-name {
-      font-family: 'Playfair Display', serif;
-      font-size: 22px; color: var(--cream);
-      margin-bottom: 8px;
-    }
-    .info-sheet-desc {
-      font-size: 13px; color: var(--muted);
-      line-height: 1.7; margin-bottom: 16px;
-    }
-    .info-sheet-foot {
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .info-sheet-price {
-      font-family: 'Playfair Display', serif;
-      font-size: 24px; color: var(--gold-lt);
-    }
-    .info-sheet-no-ar {
-      font-size: 12px; color: var(--muted);
-      padding: 10px 18px;
-      border: 1px solid rgba(201,168,76,0.2);
-      border-radius: 6px;
+      background: #000;
+      display: none;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 16px;
+      z-index: 9998;
+      padding: 32px;
       text-align: center;
-      line-height: 1.5;
+    }
+    .cam-permission.show { display: flex; }
+    .cam-perm-icon { font-size: 52px; }
+    .cam-perm-title {
+      font-family: 'Cinzel', serif;
+      font-size: 16px; letter-spacing: 3px;
+      color: var(--gold);
+    }
+    .cam-perm-sub {
+      font-size: 13px; color: var(--muted);
+      line-height: 1.65; max-width: 280px;
+    }
+    .cam-perm-btn {
+      margin-top: 8px;
+      padding: 13px 32px;
+      background: var(--gold);
+      color: #000;
+      font-family: 'Cinzel', serif;
+      font-size: 13px; letter-spacing: 2px;
+      border: none; border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    /* ── NO-MODEL TOAST ── */
+    .no-model-toast {
+      position: fixed;
+      bottom: 180px; left: 50%;
+      transform: translateX(-50%) translateY(10px);
+      background: rgba(10,10,10,0.9);
+      border: 1px solid rgba(201,168,76,0.3);
+      color: var(--muted);
+      font-size: 12px; letter-spacing: 1px;
+      padding: 10px 22px;
+      border-radius: 30px;
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 20;
+      white-space: nowrap;
+    }
+    .no-model-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
     }
   </style>
 </head>
 <body>
 
-<!-- Loading -->
-<div class="loading-overlay" id="loading">
-  <div class="load-ring"></div>
-  <p class="load-text">LOADING MENU</p>
+<!-- 1. CAMERA BACKGROUND -->
+<div id="camera-layer">
+  <video id="camera-video" autoplay playsinline muted></video>
 </div>
 
-<!-- Hidden AR model-viewer container -->
-<div id="ar-mv-container"></div>
-
-<!-- AR Launching Toast -->
-<div class="ar-toast" id="ar-toast">
-  <span class="ar-toast-icon">📱</span>
-  <div class="ar-toast-spinner" id="ar-spinner"></div>
-  <div class="ar-toast-title" id="ar-toast-title">LAUNCHING AR</div>
-  <div class="ar-toast-sub" id="ar-toast-sub">Point your camera at a flat surface<br>to place the dish in your space</div>
-  <button class="ar-toast-cancel" onclick="cancelAR()">Cancel</button>
+<!-- 2. 3D MODEL — rendered on top of camera -->
+<div id="model-layer">
+  <model-viewer
+    id="ar-model-viewer"
+    class="hidden"
+    camera-controls
+    touch-action="pan-y"
+    shadow-intensity="1"
+    shadow-softness="0.8"
+    environment-image="neutral"
+    exposure="1.1"
+    camera-orbit="0deg 65deg 1.8m"
+    min-camera-orbit="auto auto 0.6m"
+    max-camera-orbit="auto auto 4m"
+    interaction-prompt="none"
+    ar
+    ar-modes="webxr scene-viewer quick-look"
+    ar-placement="floor"
+    ar-scale="fixed"
+  ></model-viewer>
 </div>
 
-<!-- No-AR info sheet (fallback for desktop/unsupported) -->
-<div class="info-sheet" id="info-sheet">
-  <div class="info-sheet-card">
-    <button class="info-sheet-close" onclick="closeInfoSheet()">✕</button>
-    <div class="info-sheet-name"  id="sheet-name"></div>
-    <div class="info-sheet-desc"  id="sheet-desc"></div>
-    <div class="info-sheet-foot">
-      <div class="info-sheet-price">
-        <span style="font-size:13px;font-family:'DM Sans';color:var(--muted)">₹</span>
-        <span id="sheet-price"></span>
-      </div>
-      <div class="info-sheet-no-ar" id="sheet-no-ar">
-        🖥️ AR requires a<br>mobile device
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- APP -->
-<div class="app" id="app" style="display:none">
+<!-- 3. UI OVERLAY -->
+<div id="ui-overlay">
 
   <div class="top-bar">
     <div class="back-btn">←</div>
@@ -575,26 +492,18 @@
 
   <div class="cat-tabs" id="cat-tabs"></div>
 
-  <div class="dish-stage">
-    <div class="glow-bg"></div>
+  <!-- camera + 3D visible here -->
+  <div class="stage-spacer"></div>
 
-    <div class="main-circle-wrap">
-      <div class="main-circle-outer">
-        <div class="main-circle" id="main-circle">
-          <div class="fade-cover" id="fade-cover"></div>
-          <img id="main-img" src="" alt="" />
-          <div class="emoji-fb" id="main-emoji"></div>
-          <div class="view-label" id="view-label">TAP TO VIEW IN AR</div>
-        </div>
-      </div>
+  <div class="dish-info-card">
+    <div class="ar-status" id="ar-status">
+      <div class="ar-status-dot" id="ar-dot"></div>
+      <span class="ar-status-text" id="ar-text">POINT AT A FLAT SURFACE</span>
     </div>
-
-    <div class="dish-info">
-      <div class="dish-info-name"  id="info-name"></div>
-      <div class="dish-info-desc"  id="info-desc"></div>
-      <div class="dish-info-tags"  id="info-tags"></div>
-      <div class="dish-info-price" id="info-price"></div>
-    </div>
+    <div class="dish-info-name"  id="info-name"></div>
+    <div class="dish-info-desc"  id="info-desc"></div>
+    <div class="dish-info-tags"  id="info-tags"></div>
+    <div class="dish-info-price" id="info-price"></div>
   </div>
 
   <div class="caret-row"><div class="caret"></div></div>
@@ -605,10 +514,30 @@
 
 </div>
 
+<!-- Loading -->
+<div class="loading-overlay" id="loading">
+  <div class="load-ring"></div>
+  <p class="load-text">LOADING MENU</p>
+</div>
+
+<!-- Camera permission prompt -->
+<div class="cam-permission" id="cam-permission">
+  <div class="cam-perm-icon">📷</div>
+  <div class="cam-perm-title">CAMERA ACCESS</div>
+  <div class="cam-perm-sub">
+    PINOCCHIO uses your camera to place<br>
+    3D dishes on your table in the real world.
+  </div>
+  <button class="cam-perm-btn" id="cam-perm-btn">ALLOW CAMERA</button>
+</div>
+
+<!-- No model toast -->
+<div class="no-model-toast" id="no-model-toast">No 3D model for this dish</div>
+
 <script>
-/* ═══════════════════════════════════════════
-   DATA & CONFIG
-═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════ */
 const ASSETS_BASE = '3d-model';
 
 const LOCAL_ASSETS = {
@@ -617,56 +546,52 @@ const LOCAL_ASSETS = {
   'cheesy-green-lasagne':               { folder:'Cheesy-Green-Lasagne',               file:'Cheesy-Green-Lasagne',               scale:0.12 },
   'fried-calamari':                     { folder:'Fried-Calamari',                     file:'Fried-Calamari',                     scale:0.25 },
 };
-
 const EMOJI_MAP = {
   'pistachio-sauce-bigne-with-ricotta':'🍮',
   'pinocchio-tiramisu':'🍰',
   'cheesy-green-lasagne':'🧀',
   'fried-calamari':'🦑',
 };
-
 const CAT_LABELS = { all:'All', starter:'Starters', 'main-course':'Mains', dessert:'Desserts' };
-
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTEkmIGoRgD1rQNmDgmY3lvB7WBOg86iOHHrS0MJ6qQiReuDHsUyX3YV7KoWXxTbefyBUWPTHpvUOt3/pub?output=csv';
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)||
+              (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 
-const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════
    STATE
-═══════════════════════════════════════════ */
-let allDishes = [], rawRows = [];
-let activeCategory = 'all';
-let activeDishIdx  = 0;
-let filteredDishes = [];
-let currentMV      = null;  // current model-viewer element
-let arCancelled    = false;
+═══════════════════════════════════════ */
+let allDishes=[], rawRows=[];
+let activeCategory='all';
+let activeDishIdx=0;
+let filteredDishes=[];
+let cameraStream=null;
+let modelLoaded=false;
+let toastTimer=null;
 
-/* ═══════════════════════════════════════════
+const mv = document.getElementById('ar-model-viewer');
+
+/* ═══════════════════════════════════════
    HELPERS
-═══════════════════════════════════════════ */
-function normalizeKey(str){
-  return (str||'').toLowerCase().replace(/\s+/g,'-').trim();
-}
+═══════════════════════════════════════ */
+function norm(s){ return (s||'').toLowerCase().replace(/\s+/g,'-').trim(); }
 function getAssets(name){
-  const k = normalizeKey(name);
-  const e = LOCAL_ASSETS[k];
+  const k=norm(name), e=LOCAL_ASSETS[k];
   if(!e) return {poster:'',glb:'',usdz:'',scale:0.05};
-  const b = `${ASSETS_BASE}/${e.folder}/${e.file}`;
-  return {poster:`${b}.png`, glb:`${b}.glb`, usdz:`${b}.usdz`, scale:e.scale};
+  const b=`${ASSETS_BASE}/${e.folder}/${e.file}`;
+  return {poster:`${b}.png`,glb:`${b}.glb`,usdz:`${b}.usdz`,scale:e.scale};
 }
 function parseCSV(text){
-  const lines = text.trim().split('\n');
-  if(lines.length<2) return [];
-  const headers = splitLine(lines[0]).map(h=>h.trim().toLowerCase());
+  const lines=text.trim().split('\n');
+  if(lines.length<2)return[];
+  const headers=splitLine(lines[0]).map(h=>h.trim().toLowerCase());
   return lines.slice(1).map(line=>{
-    const vals=splitLine(line), obj={};
-    headers.forEach((h,i)=>{ obj[h]=(vals[i]||'').trim(); });
+    const vals=splitLine(line),obj={};
+    headers.forEach((h,i)=>{obj[h]=(vals[i]||'').trim();});
     return obj;
   });
 }
 function splitLine(line){
-  const res=[]; let cur='',inQ=false;
+  const res=[];let cur='',inQ=false;
   for(let i=0;i<line.length;i++){
     const ch=line[i];
     if(ch==='"'&&!inQ){inQ=true;continue;}
@@ -674,28 +599,124 @@ function splitLine(line){
     if(ch===','&&!inQ){res.push(cur);cur='';continue;}
     cur+=ch;
   }
-  res.push(cur); return res;
+  res.push(cur);return res;
 }
-function truthy(v){ return ['true','yes','1'].includes((v||'').toLowerCase()); }
-
+function truthy(v){return['true','yes','1'].includes((v||'').toLowerCase());}
 function rowToDish(row){
-  const a = getAssets(row['name']);
-  return {
-    id:       row['id']||'',
-    name:     row['name']||'',
-    category: (row['category']||'other').toLowerCase(),
-    desc:     row['description']||'',
-    price:    parseInt(row['price']||'0',10),
-    veg:      truthy(row['veg']),
-    available:truthy(row['available']),
-    ...a,
-    emoji: EMOJI_MAP[normalizeKey(row['name'])]||'🍽️',
+  const a=getAssets(row['name']);
+  return{
+    id:row['id']||'',name:row['name']||'',
+    category:(row['category']||'other').toLowerCase(),
+    desc:row['description']||'',
+    price:parseInt(row['price']||'0',10),
+    veg:truthy(row['veg']),available:truthy(row['available']),
+    ...a,emoji:EMOJI_MAP[norm(row['name'])]||'🍽️',
   };
 }
 
-/* ═══════════════════════════════════════════
-   RENDER
-═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════
+   CAMERA
+═══════════════════════════════════════ */
+async function startCamera(){
+  const video = document.getElementById('camera-video');
+  try {
+    // Prefer back (environment) camera for AR feel
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080} },
+      audio:false
+    });
+    cameraStream = stream;
+    video.srcObject = stream;
+    await video.play();
+    document.getElementById('cam-permission').classList.remove('show');
+    return true;
+  } catch(err){
+    console.warn('Camera error:', err);
+    // Show permission prompt or just show dark bg — don't block the menu
+    document.getElementById('cam-permission').classList.add('show');
+    return false;
+  }
+}
+
+document.getElementById('cam-perm-btn').addEventListener('click', async ()=>{
+  document.getElementById('cam-permission').classList.remove('show');
+  await startCamera();
+});
+
+/* ═══════════════════════════════════════
+   STATUS INDICATOR
+═══════════════════════════════════════ */
+function setStatus(state, text){
+  const dot  = document.getElementById('ar-dot');
+  const txt  = document.getElementById('ar-text');
+  dot.className  = 'ar-status-dot';
+  if(state==='loading') dot.classList.add('loading');
+  if(state==='placed')  dot.classList.add('placed');
+  txt.textContent = text;
+}
+
+/* ═══════════════════════════════════════
+   LOAD MODEL INTO VIEWER
+═══════════════════════════════════════ */
+function loadModel(dish){
+  if(!dish.glb){
+    mv.classList.add('hidden');
+    setStatus('idle','NO 3D MODEL FOR THIS DISH');
+    showNoModelToast();
+    return;
+  }
+
+  modelLoaded = false;
+  mv.classList.remove('hidden');
+  setStatus('loading','LOADING 3D MODEL…');
+
+  // Set src + scale
+  const s=(dish.scale??1).toFixed(6);
+  mv.setAttribute('scale',`${s} ${s} ${s}`);
+
+  // iOS USDZ
+  if(isIOS && dish.usdz){
+    mv.setAttribute('ios-src', dish.usdz);
+  } else {
+    mv.removeAttribute('ios-src');
+  }
+
+  // Poster
+  if(dish.poster) mv.setAttribute('poster', dish.poster);
+  else            mv.removeAttribute('poster');
+
+  mv.setAttribute('src', dish.glb);
+}
+
+// model-viewer events
+mv.addEventListener('load', ()=>{
+  modelLoaded = true;
+  setStatus('idle','DISH PLACED ON YOUR TABLE');
+  // The model is now visible in the 3D view overlaid on camera
+});
+mv.addEventListener('error', ()=>{
+  setStatus('idle','COULD NOT LOAD 3D MODEL');
+  mv.classList.add('hidden');
+});
+mv.addEventListener('ar-status', e=>{
+  const s = e.detail.status;
+  if(s==='session-started') setStatus('placed','PLACED ON SURFACE ✓');
+  if(s==='failed')          setStatus('idle','AR UNAVAILABLE ON THIS DEVICE');
+});
+
+/* ═══════════════════════════════════════
+   NO MODEL TOAST
+═══════════════════════════════════════ */
+function showNoModelToast(){
+  const t = document.getElementById('no-model-toast');
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=> t.classList.remove('show'), 2500);
+}
+
+/* ═══════════════════════════════════════
+   RENDER UI
+═══════════════════════════════════════ */
 function getFiltered(){
   return activeCategory==='all' ? allDishes : allDishes.filter(d=>d.category===activeCategory);
 }
@@ -704,51 +725,45 @@ function getCategories(){
 }
 
 function renderCatTabs(){
-  const wrap = document.getElementById('cat-tabs');
-  wrap.innerHTML = getCategories().map(c=>
+  const wrap=document.getElementById('cat-tabs');
+  wrap.innerHTML=getCategories().map(c=>
     `<button class="cat-tab${c===activeCategory?' active':''}" data-cat="${c}">
        ${CAT_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))}
      </button>`
   ).join('');
   wrap.querySelectorAll('.cat-tab').forEach(btn=>
     btn.addEventListener('click',()=>{
-      activeCategory = btn.dataset.cat;
-      activeDishIdx  = 0;
+      activeCategory=btn.dataset.cat;
+      activeDishIdx=0;
       renderCatTabs();
       renderThumbStrip();
-      updateMainDish(0,true);
+      selectDish(0);
     })
   );
 }
 
 function renderThumbStrip(){
-  filteredDishes = getFiltered();
-  const strip = document.getElementById('thumb-strip');
-  strip.innerHTML = filteredDishes.map((d,i)=>{
-    const inner = d.poster
+  filteredDishes=getFiltered();
+  const strip=document.getElementById('thumb-strip');
+  strip.innerHTML=filteredDishes.map((d,i)=>{
+    const inner=d.poster
       ? `<img src="${d.poster}" alt="${d.name}"
             onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-         <span style="display:none;font-size:24px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
-      : `<span style="font-size:24px;">${d.emoji}</span>`;
+         <span style="display:none;font-size:22px;align-items:center;justify-content:center;width:100%;height:100%;">${d.emoji}</span>`
+      : `<span style="font-size:22px;">${d.emoji}</span>`;
     return `
       <div class="thumb-item${i===activeDishIdx?' active':''}" data-idx="${i}">
-        <div class="thumb-ring">
-          <div class="thumb-inner">${inner}</div>
-        </div>
+        <div class="thumb-ring"><div class="thumb-inner">${inner}</div></div>
         <div class="thumb-label">${d.name.split(' ').slice(0,2).join(' ')}</div>
       </div>`;
   }).join('');
 
   strip.querySelectorAll('.thumb-item').forEach(item=>{
     item.addEventListener('click',()=>{
-      const idx = parseInt(item.dataset.idx);
-      // Switch active dish on the main stage
-      activeDishIdx = idx;
+      const idx=parseInt(item.dataset.idx);
+      activeDishIdx=idx;
       updateThumbActive();
-      updateMainDish(idx, true);
-      // Then immediately launch AR for this dish
-      const d = filteredDishes[idx];
-      if(d) triggerAR(d);
+      selectDish(idx);
     });
   });
 
@@ -756,252 +771,67 @@ function renderThumbStrip(){
 }
 
 function updateThumbActive(){
-  document.querySelectorAll('.thumb-item').forEach((el,i)=>{
-    el.classList.toggle('active', i===activeDishIdx);
-  });
+  document.querySelectorAll('.thumb-item').forEach((el,i)=>
+    el.classList.toggle('active',i===activeDishIdx)
+  );
   scrollThumbToActive();
 }
-
 function scrollThumbToActive(){
-  const el = document.querySelectorAll('.thumb-item')[activeDishIdx];
+  const el=document.querySelectorAll('.thumb-item')[activeDishIdx];
   if(el) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
 }
 
-function updateMainDish(idx, animate=false){
-  filteredDishes = getFiltered();
-  const d = filteredDishes[idx];
+/* ═══════════════════════════════════════
+   SELECT DISH — updates info + loads 3D
+═══════════════════════════════════════ */
+function selectDish(idx){
+  filteredDishes=getFiltered();
+  const d=filteredDishes[idx];
   if(!d) return;
 
-  const fadeCover = document.getElementById('fade-cover');
-  if(animate){
-    fadeCover.classList.add('show');
-    setTimeout(()=>{ setMainContent(d); fadeCover.classList.remove('show'); }, 150);
-  } else {
-    setMainContent(d);
-  }
-
-  // Update view label
-  const lbl = document.getElementById('view-label');
-  lbl.textContent = d.glb ? 'TAP TO VIEW IN AR' : 'TAP FOR DETAILS';
-}
-
-function setMainContent(d){
-  const img      = document.getElementById('main-img');
-  const emojiEl  = document.getElementById('main-emoji');
-
-  if(d.poster){
-    img.src = d.poster;
-    img.style.display = 'block';
-    emojiEl.style.display = 'none';
-    img.onerror = ()=>{
-      img.style.display = 'none';
-      emojiEl.textContent = d.emoji;
-      emojiEl.style.display = 'flex';
-    };
-  } else {
-    img.style.display = 'none';
-    emojiEl.textContent = d.emoji;
-    emojiEl.style.display = 'flex';
-  }
-
+  // Update info card
   document.getElementById('info-name').textContent = d.name;
   document.getElementById('info-desc').textContent = d.desc;
   document.getElementById('info-price').innerHTML  =
     `<span class="sym">₹</span>${d.price.toLocaleString('en-IN')}`;
+  document.getElementById('info-tags').innerHTML   =
+    d.veg ? '<span class="tag tag-veg">🌿 Vegetarian</span>' : '';
 
-  const tagsEl = document.getElementById('info-tags');
-  tagsEl.innerHTML = d.veg ? '<span class="tag tag-veg">🌿 Vegetarian</span>' : '';
+  // Load 3D model → appears on camera view directly
+  loadModel(d);
 }
 
-/* ═══════════════════════════════════════════
-   MAIN CIRCLE TAP → AR
-═══════════════════════════════════════════ */
-document.getElementById('main-circle').addEventListener('click', ()=>{
-  filteredDishes = getFiltered();
-  const d = filteredDishes[activeDishIdx];
-  if(d) triggerAR(d);
-});
-
-/* ═══════════════════════════════════════════
-   AR LAUNCH — CORE
-═══════════════════════════════════════════ */
-function triggerAR(dish){
-  if(!dish.glb){
-    // No 3D model — show info sheet
-    showInfoSheet(dish);
-    return;
-  }
-
-  arCancelled = false;
-  showARToast(dish, 'loading');
-
-  // Remove any previous model-viewer
-  const container = document.getElementById('ar-mv-container');
-  container.innerHTML = '';
-  currentMV = null;
-
-  const mv = document.createElement('model-viewer');
-  mv.setAttribute('src', dish.glb);
-  if(isIOS && dish.usdz) mv.setAttribute('ios-src', dish.usdz);
-
-  const s = (dish.scale ?? 1).toFixed(6);
-  mv.setAttribute('scale',              `${s} ${s} ${s}`);
-  mv.setAttribute('ar',                 '');
-  mv.setAttribute('ar-modes',           'webxr scene-viewer quick-look');
-  mv.setAttribute('ar-placement',       'floor');
-  mv.setAttribute('ar-scale',           'fixed');
-  mv.setAttribute('camera-controls',    '');
-  mv.setAttribute('shadow-intensity',   '1');
-  mv.setAttribute('shadow-softness',    '0.8');
-  mv.setAttribute('environment-image',  'neutral');
-  mv.setAttribute('exposure',           '1.1');
-  mv.setAttribute('camera-orbit',       '0deg 75deg 105%');
-  mv.setAttribute('interaction-prompt', 'none');
-  mv.setAttribute('loading',            'eager');
-  mv.setAttribute('reveal',             'auto');
-  mv.setAttribute('touch-action',       'pan-y');
-  mv.style.cssText = 'width:1px;height:1px;display:block;';
-
-  container.appendChild(mv);
-  currentMV = mv;
-
-  mv.addEventListener('load', ()=>{
-    if(arCancelled) return;
-    // Model loaded — launch AR immediately
-    updateARToast(dish, 'ready');
-    mv.activateAR();
-
-    mv.addEventListener('ar-status', (e)=>{
-      const s = e.detail.status;
-      if(s === 'session-started'){
-        // AR started — hide our toast (Scene Viewer / WebXR takes over UI)
-        hideARToast();
-      } else if(s === 'failed' || s === 'not-presenting'){
-        // AR not available on this device
-        hideARToast();
-        showInfoSheet(dish, true);
-      }
-    }, { once:true });
-
-    // Quick Look (iOS) dismisses by restoring visibility;
-    // listen for document visibility to detect return
-    document.addEventListener('visibilitychange', onVisibilityReturn, { once:true });
-  });
-
-  mv.addEventListener('error', ()=>{
-    if(arCancelled) return;
-    hideARToast();
-    showInfoSheet(dish, false, true);
-  });
-}
-
-function onVisibilityReturn(){
-  // User returned from AR session (Quick Look / Scene Viewer)
-  hideARToast();
-}
-
-/* ═══════════════════════════════════════════
-   AR TOAST HELPERS
-═══════════════════════════════════════════ */
-function showARToast(dish, state){
-  const toast   = document.getElementById('ar-toast');
-  const spinner = document.getElementById('ar-spinner');
-  const title   = document.getElementById('ar-toast-title');
-  const sub     = document.getElementById('ar-toast-sub');
-
-  if(state === 'loading'){
-    spinner.style.display = 'block';
-    title.textContent     = 'LOADING MODEL…';
-    sub.textContent       = dish.name;
-  }
-  toast.classList.add('show');
-}
-
-function updateARToast(dish, state){
-  const spinner = document.getElementById('ar-spinner');
-  const title   = document.getElementById('ar-toast-title');
-  const sub     = document.getElementById('ar-toast-sub');
-
-  if(state === 'ready'){
-    spinner.style.display = 'none';
-    title.textContent     = 'LAUNCHING AR';
-    sub.innerHTML         = 'Point at a flat surface<br>to place the dish';
-  }
-}
-
-function hideARToast(){
-  document.getElementById('ar-toast').classList.remove('show');
-}
-
-function cancelAR(){
-  arCancelled = true;
-  hideARToast();
-  // Clean up model-viewer
-  const container = document.getElementById('ar-mv-container');
-  container.innerHTML = '';
-  currentMV = null;
-}
-
-/* ═══════════════════════════════════════════
-   INFO SHEET (fallback: no 3D / no AR support)
-═══════════════════════════════════════════ */
-function showInfoSheet(dish, noARDevice=false, loadError=false){
-  document.getElementById('sheet-name').textContent  = dish.name;
-  document.getElementById('sheet-desc').textContent  = dish.desc;
-  document.getElementById('sheet-price').textContent = dish.price.toLocaleString('en-IN');
-
-  const noAREl = document.getElementById('sheet-no-ar');
-  if(loadError){
-    noAREl.innerHTML = '⚠️ 3D model failed to load';
-  } else if(noARDevice){
-    noAREl.innerHTML = '📱 Open on a mobile<br>device to use AR';
-  } else {
-    noAREl.innerHTML = '🚫 No 3D model<br>available for this dish';
-  }
-
-  document.getElementById('info-sheet').classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeInfoSheet(){
-  document.getElementById('info-sheet').classList.remove('open');
-  document.body.style.overflow = '';
-}
-document.getElementById('info-sheet').addEventListener('click', e=>{
-  if(e.target === document.getElementById('info-sheet')) closeInfoSheet();
-});
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════
    INIT
-═══════════════════════════════════════════ */
+═══════════════════════════════════════ */
 async function init(){
-  const loadEl = document.getElementById('loading');
-  const appEl  = document.getElementById('app');
-  try {
-    const res   = await fetch(CSV_URL);
+  const loadEl=document.getElementById('loading');
+  try{
+    // Start camera immediately (in parallel with menu fetch)
+    startCamera(); // non-blocking
+
+    const res=await fetch(CSV_URL);
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text  = await res.text();
-    rawRows     = parseCSV(text);
-    allDishes   = rawRows.map(rowToDish).filter(d=>d.name && d.available);
+    const text=await res.text();
+    rawRows=parseCSV(text);
+    allDishes=rawRows.map(rowToDish).filter(d=>d.name&&d.available);
     if(!allDishes.length) throw new Error('No dishes');
 
     loadEl.classList.add('hidden');
-    appEl.style.display = 'flex';
+    setTimeout(()=>{ loadEl.style.display='none'; },500);
 
-    filteredDishes = getFiltered();
+    filteredDishes=getFiltered();
     renderCatTabs();
     renderThumbStrip();
-    updateMainDish(0, false);
+    selectDish(0);
 
-    setTimeout(()=>{ loadEl.style.display='none'; }, 400);
-
-  } catch(err){
-    console.error('Menu error:', err);
-    loadEl.innerHTML = `
+  }catch(err){
+    console.error(err);
+    loadEl.innerHTML=`
       <div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;">
         <div style="font-size:36px;margin-bottom:14px">🍽️</div>
         <div>Could not load menu</div>
-        <div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif;letter-spacing:1px">Check connection &amp; try again</div>
+        <div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif">Check connection</div>
       </div>`;
   }
 }
