@@ -17,17 +17,9 @@
       font-family: 'DM Sans', sans-serif; color: var(--cream);
       -webkit-font-smoothing: antialiased; }
 
-    /* LAYER 1 — LIVE CAMERA BACKGROUND
-       getUserMedia streams the back camera here.
-       The real table/surface is visible, exactly
-       like the screenshot you shared. */
     #camera-bg { position: fixed; inset: 0; z-index: 0; background: #111; }
     #cam-video { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-    /* LAYER 2 — model-viewer, TRANSPARENT background
-       The 3D dish renders on top of the camera image.
-       Because background is transparent, the real table
-       shows through — dish appears to sit on the table. */
     #mv-layer { position: fixed; inset: 0; z-index: 1; }
     model-viewer {
       width: 100%; height: 100%;
@@ -39,11 +31,9 @@
     model-viewer.hidden { opacity: 0; pointer-events: none; }
     model-viewer::part(default-ar-button) { display: none !important; }
 
-    /* LAYER 3 — UI */
     #ui { position: fixed; inset: 0; z-index: 10; pointer-events: none;
       display: flex; flex-direction: column; }
 
-    /* TOP BAR */
     .top-bar {
       display: flex; align-items: center; justify-content: space-between;
       padding: 14px 16px 10px; pointer-events: auto;
@@ -71,7 +61,6 @@
       font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center;
     }
 
-    /* CATEGORY TABS */
     .cat-tabs { display: flex; gap: 8px; padding: 2px 16px 8px;
       overflow-x: auto; scrollbar-width: none; pointer-events: auto; }
     .cat-tabs::-webkit-scrollbar { display: none; }
@@ -88,10 +77,8 @@
 
     .stage { flex: 1; }
 
-    /* BOTTOM PANEL */
     .bottom-panel { pointer-events: auto; }
 
-    /* Dish info sits directly on the camera — matching the screenshot */
     .dish-info {
       padding: 0 18px 10px;
       background: linear-gradient(0deg, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.38) 65%, transparent 100%);
@@ -117,7 +104,6 @@
       color: var(--gold-lt); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
     .dish-price .sym { font-family: 'DM Sans', sans-serif; font-size: 14px; color: var(--muted); }
 
-    /* AR BUTTON — gold pill, exactly like screenshot */
     .ar-btn-wrap {
       padding: 0 16px 10px;
       background: rgba(0,0,0,0.42);
@@ -137,14 +123,12 @@
     .ar-unsupported { display: none; text-align: center; font-size: 10px; letter-spacing: 2px;
       color: rgba(201,168,76,0.4); font-family: 'Cinzel', serif; padding: 10px 0 6px; }
 
-    /* CARET */
     .caret-row { display: flex; justify-content: center; padding: 4px 0 5px;
       background: rgba(0,0,0,0.35); }
     .caret { width: 0; height: 0; border-left: 9px solid transparent;
       border-right: 9px solid transparent; border-top: 11px solid var(--gold);
       filter: drop-shadow(0 2px 5px rgba(201,168,76,0.6)); }
 
-    /* THUMBNAIL STRIP */
     .thumb-wrap { pointer-events: auto; background: rgba(0,0,0,0.45);
       backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
       padding-bottom: max(env(safe-area-inset-bottom), 14px); }
@@ -172,7 +156,6 @@
       transition: color 0.2s; }
     .thumb-item.active .thumb-label { color: var(--gold-lt); font-weight: 500; }
 
-    /* LOADING */
     .loading-overlay { position: fixed; inset: 0; background: #000;
       display: flex; align-items: center; justify-content: center;
       flex-direction: column; gap: 14px; z-index: 9999; transition: opacity 0.5s; }
@@ -182,7 +165,6 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .load-text { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 4px; color: var(--muted); }
 
-    /* CAMERA PERMISSION */
     .cam-card { position: fixed; inset: 0; background: rgba(0,0,0,0.93);
       display: none; flex-direction: column; align-items: center; justify-content: center;
       gap: 14px; padding: 32px; text-align: center; z-index: 9998; }
@@ -194,7 +176,6 @@
       font-family: 'Cinzel', serif; font-size: 12px; letter-spacing: 2px;
       border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
 
-    /* MODEL SPINNER */
     .model-spinner { position: fixed; top: 42%; left: 50%; transform: translate(-50%,-50%);
       z-index: 5; pointer-events: none; display: flex; flex-direction: column;
       align-items: center; gap: 9px; opacity: 0; transition: opacity 0.3s; }
@@ -204,7 +185,6 @@
     .ms-text { font-family: 'Cinzel', serif; font-size: 8.5px; letter-spacing: 3px;
       color: rgba(201,168,76,0.55); }
 
-    /* TOAST */
     .toast { position: fixed; top: 88px; left: 50%;
       transform: translateX(-50%) translateY(-5px);
       background: rgba(5,5,5,0.88); border: 1px solid rgba(201,168,76,0.28);
@@ -213,14 +193,102 @@
       backdrop-filter: blur(8px); opacity: 0; transition: opacity 0.3s, transform 0.3s;
       pointer-events: none; z-index: 20; white-space: nowrap; }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── INSTANT-AR SPLASH ─────────────────────────────────────────────────────
+       Shown immediately on first load (before any model loads).
+       This IS the user gesture — tapping it calls activateAR() directly.
+       Two states:
+         .loading  = model still loading — shows spinner, tap queues AR
+         (default) = model ready — tap fires AR immediately
+    ────────────────────────────────────────────────────────────────────────── */
+    #ar-splash {
+      position: fixed; inset: 0; z-index: 50;
+      display: none;
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0;
+      background: rgba(0,0,0,0.52);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #ar-splash.show { display: flex; }
+
+    /* Pulse ring */
+    .splash-ring {
+      width: 120px; height: 120px; border-radius: 50%;
+      border: 2px solid rgba(201,168,76,0.4);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; margin-bottom: 24px;
+    }
+    .splash-ring::before {
+      content: '';
+      position: absolute; inset: -14px; border-radius: 50%;
+      border: 1.5px solid rgba(201,168,76,0.18);
+      animation: splash-pulse 2s ease-in-out infinite 0.3s;
+    }
+    .splash-ring::after {
+      content: '';
+      position: absolute; inset: -28px; border-radius: 50%;
+      border: 1px solid rgba(201,168,76,0.08);
+      animation: splash-pulse 2s ease-in-out infinite 0.6s;
+    }
+    /* The ring itself pulses only when ready */
+    #ar-splash:not(.loading) .splash-ring {
+      animation: splash-pulse 2s ease-in-out infinite;
+    }
+    @keyframes splash-pulse {
+      0%,100%{ transform: scale(1); opacity: 1; }
+      50%    { transform: scale(1.07); opacity: 0.7; }
+    }
+
+    .splash-icon { font-size: 50px; line-height: 1; }
+
+    /* Loading ring — shown inside the icon area while model loads */
+    .splash-loading-ring {
+      display: none;
+      width: 56px; height: 56px;
+      border: 3px solid rgba(201,168,76,0.18);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    #ar-splash.loading .splash-icon { display: none; }
+    #ar-splash.loading .splash-loading-ring { display: block; }
+
+    .splash-label {
+      font-family: 'Cinzel', serif; font-size: 13px;
+      letter-spacing: 4px; color: var(--gold);
+      text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+      margin-bottom: 8px;
+    }
+    /* When loading, swap the label text via data attribute */
+    #ar-splash.loading .splash-label-ready { display: none; }
+    #ar-splash:not(.loading) .splash-label-loading { display: none; }
+
+    .splash-sub {
+      font-size: 11px; color: var(--muted);
+      letter-spacing: 1.5px; text-align: center;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+    }
+
+    #splash-skip {
+      position: absolute; bottom: 200px;
+      background: rgba(0,0,0,0.5); border: 1px solid rgba(201,168,76,0.2);
+      color: rgba(201,168,76,0.5); font-family: 'Cinzel', serif;
+      font-size: 9px; letter-spacing: 2px; padding: 8px 20px;
+      border-radius: 30px; cursor: pointer;
+      backdrop-filter: blur(6px);
+    }
+    /* Only show skip when ready */
+    #ar-splash.loading #splash-skip { display: none; }
   </style>
 </head>
 <body>
 
-<!-- LAYER 1: LIVE CAMERA — real table/surface visible as background -->
 <div id="camera-bg"><video id="cam-video" autoplay playsinline muted></video></div>
 
-<!-- LAYER 2: model-viewer — transparent bg, 3D dish appears on real table -->
 <div id="mv-layer">
   <model-viewer id="mv" class="hidden"
     camera-controls touch-action="pan-y"
@@ -235,7 +303,6 @@
   </model-viewer>
 </div>
 
-<!-- LAYER 3: UI CONTROLS -->
 <div id="ui">
   <div class="top-bar">
     <button class="back-btn">&#8592;</button>
@@ -254,7 +321,6 @@
       </div>
     </div>
     <div class="ar-btn-wrap">
-      <!-- Tapping this calls mv.activateAR() — real WebXR/QuickLook/SceneViewer -->
       <button class="ar-btn" id="ar-btn" disabled>
         <span>&#x2B21;</span> VIEW IN AR &#8212; PLACE ON TABLE
       </button>
@@ -281,6 +347,26 @@
   <button class="cam-card-btn" id="cam-card-btn">ALLOW CAMERA</button>
 </div>
 
+<!--
+  INSTANT-AR SPLASH
+  - Shown IMMEDIATELY when the page loads (before model is ready)
+  - Has .loading class while model loads → shows spinner + "PREPARING AR" text
+  - When model is ready, .loading is removed → shows dish icon + "TAP TO VIEW IN AR"
+  - User tap inside click handler = valid gesture → activateAR() fires instantly
+-->
+<div id="ar-splash" class="loading">
+  <div class="splash-ring">
+    <span class="splash-icon">🍽️</span>
+    <div class="splash-loading-ring"></div>
+  </div>
+  <div class="splash-label">
+    <span class="splash-label-ready">TAP TO VIEW IN AR</span>
+    <span class="splash-label-loading">PREPARING AR</span>
+  </div>
+  <div class="splash-sub" id="splash-sub">LOADING 3D MODEL…</div>
+  <button id="splash-skip">USE CAMERA PREVIEW INSTEAD</button>
+</div>
+
 <script>
 const ASSETS_BASE = '3d-model';
 const LOCAL_ASSETS = {
@@ -299,10 +385,20 @@ const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
               (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
 
 let allDishes=[], filteredDishes=[], activeCategory='all', activeDishIdx=0, modelReady=false;
-const mv=document.getElementById('mv');
-const arBtn=document.getElementById('ar-btn');
-const spinner=document.getElementById('model-spinner');
-const toast=document.getElementById('toast');
+
+// ── KEY STATE FLAGS ──────────────────────────────────────────────────────────
+// userWantsAR: set to true when user taps the splash while model is loading.
+//              When model finishes, we auto-fire AR immediately.
+// splashDismissed: user chose "camera preview instead" — don't re-show splash.
+let userWantsAR = false;
+let splashDismissed = false;
+// ────────────────────────────────────────────────────────────────────────────
+
+const mv    = document.getElementById('mv');
+const arBtn = document.getElementById('ar-btn');
+const spinner = document.getElementById('model-spinner');
+const toast   = document.getElementById('toast');
+const splash  = document.getElementById('ar-splash');
 
 function norm(s){ return (s||'').toLowerCase().replace(/\s+/g,'-').trim(); }
 function getAssets(name){
@@ -343,9 +439,6 @@ function showToast(msg,dur=2600){
   _tt=setTimeout(()=>toast.classList.remove('show'),dur);
 }
 
-/* CAMERA — streams back camera to <video> element.
-   model-viewer renders on top with transparent bg
-   so the real table is visible beneath the 3D dish. */
 async function startCamera(){
   const video=document.getElementById('cam-video');
   try{
@@ -365,54 +458,155 @@ document.getElementById('cam-card-btn').addEventListener('click',async()=>{
   await startCamera();
 });
 
-/* AR BUTTON — mv.activateAR() is the real AR.
-   Android Chrome: WebXR session with ARCore plane detection.
-   Android fallback: Scene Viewer (native Google AR).
-   iOS Safari: Quick Look (ARKit, fullscreen native).
-   Our camera preview above is just a live preview;
-   activateAR() launches the proper AR experience. */
+// ── CORE AR FIRE ─────────────────────────────────────────────────────────────
+// Call this ONLY inside a click/touch handler (browser gesture requirement).
+async function fireAR(){
+  if(!mv.canActivateAR){ showToast('AR NOT AVAILABLE ON THIS DEVICE'); return; }
+  try{ await mv.activateAR(); }
+  catch(e){ showToast('COULD NOT START AR SESSION'); console.warn(e); }
+}
+
 function updateARBtn(){
   const ok=!!mv.canActivateAR;
   arBtn.style.display=ok?'':'none';
   document.getElementById('ar-unsupported').style.display=ok?'none':'block';
-  if(ok)arBtn.disabled=!modelReady;
+  if(ok) arBtn.disabled=!modelReady;
 }
-arBtn.addEventListener('click',async()=>{
-  if(!modelReady){showToast('MODEL STILL LOADING…');return;}
-  if(!mv.canActivateAR){showToast('AR NOT AVAILABLE ON THIS DEVICE');return;}
-  try{await mv.activateAR();}
-  catch(e){showToast('COULD NOT START AR SESSION');console.warn(e);}
+
+// Fallback button (for users who dismissed the splash)
+arBtn.addEventListener('click', async ()=>{
+  if(!modelReady){ showToast('MODEL STILL LOADING…'); return; }
+  await fireAR();
 });
 
-mv.addEventListener('load',()=>{
-  modelReady=true;spinner.classList.remove('show');
-  mv.classList.remove('hidden');updateARBtn();
+// ── SPLASH LOGIC ─────────────────────────────────────────────────────────────
+
+function updateSplashIcon(){
+  const d = filteredDishes[activeDishIdx];
+  if(d) splash.querySelector('.splash-icon').textContent = d.emoji || '🍽️';
+}
+
+// Show splash immediately — starts in .loading state
+function showSplashInitial(){
+  if(splashDismissed) return;
+  splash.classList.add('show');
+  // .loading class is already set in HTML
+}
+
+// Called when model finishes loading: remove loading state, enable tap-to-AR
+function splashModelReady(){
+  if(splashDismissed) return;
+  splash.classList.remove('loading');
+  document.getElementById('splash-sub').textContent = 'DISH WILL APPEAR ON YOUR TABLE';
+  updateSplashIcon();
+}
+
+// User tapped the splash
+splash.addEventListener('click', async (e)=>{
+  if(e.target.id === 'splash-skip') return; // handled below
+
+  if(!modelReady){
+    // Model still loading — queue the intent, show feedback
+    userWantsAR = true;
+    document.getElementById('splash-sub').textContent = 'WILL OPEN AS SOON AS READY…';
+    showToast('OPENING AR WHEN MODEL READY…', 3000);
+    return;
+  }
+
+  // Model ready — this click IS the gesture, fire AR
+  splash.classList.remove('show');
+  await fireAR();
 });
+
+document.getElementById('splash-skip').addEventListener('click',(e)=>{
+  e.stopPropagation();
+  splashDismissed = true;
+  userWantsAR = false;
+  splash.classList.remove('show');
+  updateARBtn();
+});
+
+// ── MODEL-VIEWER EVENTS ───────────────────────────────────────────────────────
+
+mv.addEventListener('load', async ()=>{
+  modelReady = true;
+  spinner.classList.remove('show');
+  mv.classList.remove('hidden');
+  updateARBtn();
+
+  if(userWantsAR && !splashDismissed && mv.canActivateAR){
+    // User already tapped while loading — BUT we cannot call activateAR() here
+    // because this is NOT a user gesture (it's a model load callback).
+    // So we: remove loading state and show a crisp "TAP" prompt.
+    // The user sees the prompt and taps once — that's all it takes.
+    userWantsAR = false;
+    splashModelReady();
+    showToast('READY — TAP THE SCREEN TO LAUNCH AR', 3500);
+    return;
+  }
+
+  if(!splashDismissed && mv.canActivateAR){
+    splashModelReady();
+  }
+});
+
 mv.addEventListener('error',()=>{
-  modelReady=false;spinner.classList.remove('show');
-  mv.classList.add('hidden');arBtn.disabled=true;
+  modelReady = false;
+  spinner.classList.remove('show');
+  mv.classList.add('hidden');
+  arBtn.disabled = true;
+  splash.classList.remove('show'); // hide splash, fall back to normal UI
+  splashDismissed = true;
   showToast('COULD NOT LOAD 3D MODEL');
 });
-mv.addEventListener('ar-status',e=>{
-  const s=e.detail.status;
-  if(s==='object-placed')showToast('DISH PLACED ✓');
-  if(s==='failed')showToast('AR UNAVAILABLE — USE CHROME (ANDROID) OR SAFARI (iOS)');
-  if(s==='not-presenting')updateARBtn();
+
+mv.addEventListener('ar-status', e=>{
+  const s = e.detail.status;
+  if(s==='object-placed') showToast('DISH PLACED ON TABLE ✓');
+  if(s==='failed'){
+    showToast('AR UNAVAILABLE — USE CHROME (ANDROID) OR SAFARI (iOS)');
+    updateARBtn();
+  }
+  if(s==='not-presenting'){
+    updateARBtn();
+    // After exiting AR, show splash again so they can re-enter with one tap
+    if(!splashDismissed && mv.canActivateAR) splash.classList.add('show');
+  }
 });
 
+// ── MODEL LOADING ─────────────────────────────────────────────────────────────
+
 function loadModel(dish){
-  modelReady=false;arBtn.disabled=true;
-  if(!dish.glb){mv.classList.add('hidden');spinner.classList.remove('show');
-    showToast('NO 3D MODEL FOR THIS DISH');return;}
-  mv.classList.add('hidden');spinner.classList.add('show');
+  modelReady = false;
+  arBtn.disabled = true;
+
+  // Reset splash to loading state for new dish
+  if(!splashDismissed){
+    splash.classList.add('loading', 'show');
+    document.getElementById('splash-sub').textContent = 'LOADING 3D MODEL…';
+  }
+
+  if(!dish.glb){
+    mv.classList.add('hidden');
+    spinner.classList.remove('show');
+    splash.classList.remove('show');
+    splashDismissed = true;
+    showToast('NO 3D MODEL FOR THIS DISH');
+    return;
+  }
+
+  mv.classList.add('hidden');
+  spinner.classList.add('show');
   const s=(dish.scale??0.1).toFixed(6);
   mv.setAttribute('scale',`${s} ${s} ${s}`);
-  if(isIOS&&dish.usdz)mv.setAttribute('ios-src',dish.usdz);
+  if(isIOS&&dish.usdz) mv.setAttribute('ios-src',dish.usdz);
   else mv.removeAttribute('ios-src');
-  if(dish.poster)mv.setAttribute('poster',dish.poster);
+  if(dish.poster) mv.setAttribute('poster',dish.poster);
   else mv.removeAttribute('poster');
   mv.setAttribute('src',dish.glb);
 }
+
+// ── UI RENDERING ──────────────────────────────────────────────────────────────
 
 function getFiltered(){
   return activeCategory==='all'?allDishes:allDishes.filter(d=>d.category===activeCategory);
@@ -442,7 +636,8 @@ function renderThumbStrip(){
       <div class="thumb-label">${d.name.split(' ').slice(0,2).join(' ')}</div></div>`;
   }).join('');
   strip.querySelectorAll('.thumb-item').forEach(item=>item.addEventListener('click',()=>{
-    activeDishIdx=parseInt(item.dataset.idx);updateThumbActive();selectDish(activeDishIdx);
+    activeDishIdx=parseInt(item.dataset.idx);
+    updateThumbActive();selectDish(activeDishIdx);
   }));
   scrollThumbToActive();
 }
@@ -457,16 +652,24 @@ function scrollThumbToActive(){
 }
 
 function selectDish(idx){
-  filteredDishes=getFiltered();const d=filteredDishes[idx];if(!d)return;
+  filteredDishes=getFiltered();
+  const d=filteredDishes[idx];if(!d)return;
   document.getElementById('info-name').textContent=d.name;
   document.getElementById('info-desc').textContent=d.desc;
   document.getElementById('info-price').innerHTML=`<span class="sym">&#8377;</span>${d.price.toLocaleString('en-IN')}`;
   document.getElementById('info-tags').innerHTML=d.veg?'<span class="tag-veg">🌿 Vegetarian</span>':'';
+  updateSplashIcon();
   loadModel(d);
 }
 
+// ── INIT ──────────────────────────────────────────────────────────────────────
+
 async function init(){
   const loadEl=document.getElementById('loading');
+
+  // Show splash IMMEDIATELY (in loading state) — user sees it on first open
+  showSplashInitial();
+
   try{
     startCamera(); // non-blocking
     const res=await fetch(CSV_URL);
@@ -481,6 +684,7 @@ async function init(){
     setTimeout(updateARBtn,1000);
   }catch(err){
     console.error(err);
+    splash.classList.remove('show');
     loadEl.innerHTML=`<div style="text-align:center;padding:2rem;color:#c9a84c;font-family:'Cinzel',serif;letter-spacing:2px;"><div style="font-size:36px;margin-bottom:14px">🍽️</div><div>Could not load menu</div><div style="font-size:11px;opacity:0.5;margin-top:8px;font-family:'DM Sans',sans-serif">Check connection</div></div>`;
   }
 }
